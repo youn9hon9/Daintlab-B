@@ -1,52 +1,71 @@
-# Daintlab-B 문서 위키
+# Daintlab-B 문서 홈
 
-이 위키는 `dev`의 로컬 평가 하네스와 후보 모델 실험에 필요한 지식을 모은다.
-제출 모델 코드는 후보 브랜치에 있으며, 이 브랜치의 문서는 구현 자체보다 공식 계약,
-평가 방법, 실험 결과와 의사결정 근거를 설명한다.
-
-## 어디서 시작할까
-
-| 목적 | 시작 문서 |
-|---|---|
-| 로컬 평가를 실행한다 | [평가 하네스 사용법](../eval/README.md) |
-| 후보별 결과를 비교한다 | [평가 기록 인덱스](evaluations/README.md) |
-| 공식 API·L2·MCP 계약을 확인한다 | [가이드 인덱스](guides/README.md) |
-| 실제 확인한 인터페이스와 설계 경계를 본다 | [구현 레퍼런스](implementation/README.md) |
-| 의료 RAG와 데이터 소스를 조사한다 | [리서치 위키](wiki/README.md) |
-| 구현 원칙과 체크리스트를 확인한다 | [Engineering Playbook](engineering/playbook.md) |
-| 과거 실행 계획을 확인한다 | [계획 문서](planning/README.md) |
-
-## 문서 지도
+이 문서는 로컬 평가 에이전트와 후보 모델 개선 에이전트가 같은 사실을 기준으로
+작업하도록 만드는 단일 진입점이다. 문서는 성격이 겹치지 않는 세 영역만 사용한다.
 
 ```text
 docs/
-├── README.md          # 이 문서: 전체 위키 홈
-├── guides/            # 공식 계약을 실행 절차로 정리한 가이드
-├── implementation/    # 확인한 인터페이스와 아키텍처 레퍼런스
-├── evaluations/       # 후보 모델별 평가 기록과 비교
-├── wiki/              # 주제별 조사 자료와 공식 원문 사본
-├── engineering/       # 재사용 가능한 구현 원칙
-└── planning/          # 시점에 종속된 계획과 의사결정 기록
+├── competition/             # 주최 측 계약과 제출 규격
+├── evaluations/
+│   ├── candidates/          # D/U/Y 후보별 재현 가능한 평가 기록
+│   └── incidents/           # timeout, 502, container failure 분석
+└── wiki/                    # 연구, 구현 교훈, 다음 모델 전략
 ```
 
-## 정보의 우선순위
+`guides`, `implementation`, `engineering`, `planning`은 더 이상 사용하지 않는다.
+공식 사실은 `competition`, 관측 결과는 `evaluations`, 재사용할 판단은 `wiki`에 둔다.
 
-내용이 충돌하면 아래 순서로 판단한다.
+## 작업별 시작점
 
-1. `wiki/00_*`의 주최 측 공식 규칙과 API/L2/MCP 안내
-2. `implementation/`의 실제 endpoint·tool schema 확인 기록
-3. `guides/`의 실행 절차와 체크리스트
-4. `wiki/15_*` 이후의 공식 스펙 기반 실무 조사
-5. `wiki/01_*`~`13_*`의 공식 스펙 공개 전 조사
+| 하려는 일 | 먼저 읽을 문서 |
+|---|---|
+| 대회 계약·API·제출 조건 확인 | [competition](competition/README.md) |
+| 로컬 프록시 실행 | [평가 하네스](../eval/README.md) |
+| 후보 성능 비교 | [평가 인덱스](evaluations/README.md) |
+| 실패 원인 조사 | [실패 사례](evaluations/incidents/README.md) |
+| 모델 개선 아이디어 도출 | [wiki 인덱스](wiki/README.md) |
+| 현재 우선순위 결정 | [모델 개선 플레이북](wiki/21_에이전트_모델개선_플레이북.md) |
+| 지연·입력 토큰 최적화 | [입력 예산 전략](wiki/22_입력예산_지연최적화_전략.md) |
 
-평가 점수는 [평가 기록 인덱스](evaluations/README.md)에 적힌 비교 가능 조건을
-함께 확인한다. 서로 다른 표본 수, manifest, 성공률의 점수를 단순 순위로 해석하지
-않는다.
+## 정보 우선순위
+
+내용이 충돌하면 다음 순서로 판단한다.
+
+1. `competition/`: 주최 측 계약. 구현이 반드시 지켜야 한다.
+2. `evaluations/`: 특정 SHA와 manifest에서 직접 관측한 사실.
+3. `wiki/15_*` 이후: 공식 스펙 공개 후 작성한 실무 지식과 전략.
+4. `wiki/01_*`~`13_*`: 공식 스펙 공개 전 배경 조사.
+
+추정은 관측 사실처럼 쓰지 않는다. 평가 점수에는 후보 SHA, manifest, 표본 수,
+성공률, 지연 시간과 judge를 함께 기록한다.
+
+## 에이전트 작업 규칙
+
+1. 모델을 바꾸기 전에 [평가 인덱스](evaluations/README.md)에서 현재 기준 후보와
+   실패 축을 확인한다.
+2. 관련 `wiki` 문서를 읽고 변경 가설을 한 문장으로 적는다.
+3. 한 후보에는 독립적인 가설 하나만 넣는다.
+4. 단위 테스트 후 동일 manifest 로컬 프록시를 실행한다.
+5. 결과를 `evaluations/candidates/<버전>.md`에 기록한다.
+6. 재사용 가능한 교훈만 wiki에 반영한다. 일회성 로그는 candidate 또는 incident에 둔다.
+7. 공식 계약이 바뀌면 먼저 `competition`을 갱신하고 영향을 받는 wiki 문서를 표시한다.
+
+## 현재 기준선
+
+- 품질·완주 기준 후보: **Y2**, representative 16에서 54.68점, 16/16 성공
+- 최근 실험: **Y3**, 44.30점, 16/16 성공
+- Y3 결론: response guidance 확장은 completeness를 높였지만 instruction following과
+  communication을 크게 훼손했다.
+- 다음 돌파구: 프롬프트 규칙 추가가 아니라 Retrieval 단계의 tool schema와 누적
+  context를 줄여 L2 입력 예산을 통제하는 것이다.
+
+상세 비교는 [Y3 평가](evaluations/candidates/Y3.md)와
+[입력 예산 전략](wiki/22_입력예산_지연최적화_전략.md)을 따른다.
 
 ## 문서 관리 원칙
 
-- 새 문서는 목적에 맞는 디렉터리에 두고 해당 디렉터리의 `README.md`에 연결한다.
-- 공식 사실, 런타임에서 확인한 사실, 추정과 실험 결론을 구분한다.
-- 시점에 따라 바뀌는 정보에는 확인 날짜나 대상 커밋을 기록한다.
-- 파일명은 기존 링크를 깨지 않도록 유지하고, 탐색 순서는 인덱스에서 관리한다.
-- 더 이상 현재 구조를 설명하지 않는 문서는 삭제하기보다 역사적 문서로 표시한다.
+- 같은 사실을 여러 문서에 복사하지 않고 한 문서를 canonical source로 연결한다.
+- 파일을 옮기면 저장소 전체의 상대 링크를 함께 수정한다.
+- 후보 결과와 전략 문서를 구분한다. 결과는 무엇이 일어났는지, wiki는 왜 그런지와
+  다음에 무엇을 검증할지를 설명한다.
+- API key, 원문 benchmark prompt, rubric, 환자 데이터는 문서에 기록하지 않는다.

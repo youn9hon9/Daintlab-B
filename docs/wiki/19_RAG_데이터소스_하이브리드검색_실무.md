@@ -21,7 +21,7 @@ Qdrant는 하나의 collection에 dense vector(신경망 임베딩)와 sparse ve
 |---|---|---|
 | MeSH 기반 query 확장 | 자연어 질의를 MeSH descriptor/동의어로 확장해 재작성 | 28,313개 MeSH descriptor 전수 비교 연구에서 MeSH 확장 전략이 평균 precision 51%(SD 23%)로 4개 확장 전략 중 최고 |
 | UMLS 기반 query 확장 | UMLS 동의어 시소러스로 확장 | 같은 연구에서 recall·F-measure 기준 최고(각 41%, 36%) — precision 중시면 MeSH, recall 중시면 UMLS로 구분해 채택 가능 |
-| Query rewriting/재작성 | 사용자의 원 질문을 자기완결적(self-contained)이고 구체적인 검색 질의로 변환 | L2 harness 자체가 "Retrieval query는 그 자체로 완결되어야 한다"고 명시 (00_Lunit_FM_L2_사용_방법.md) — MeSH/UMLS 확장을 이 재작성 단계에 결합 가능 |
+| Query rewriting/재작성 | 사용자의 원 질문을 자기완결적(self-contained)이고 구체적인 검색 질의로 변환 | [L2 문서](../competition/l2.md)가 "Retrieval query는 그 자체로 완결되어야 한다"고 명시 — MeSH/UMLS 확장을 이 재작성 단계에 결합 가능 |
 | 최신성(recency) 필터링 | 발행일 메타데이터로 최신 논문에 가중치를 주거나 필터링 | 검색으로 명확한 정량 벤치마크는 확인하지 못함 — **정확한 출처 미확인, 추가 검증 필요.** 다만 대부분의 실무 RAG 가이드가 메타데이터 필터(publish_date 등)를 payload에 저장해 필터링하는 것을 표준 패턴으로 권장 |
 | Dense+sparse+reranking 결합 | hybrid 검색 결과를 cross-encoder로 재순위화 | 02번 문서에 정리된 MDPI 2025 리뷰(250개 임상 vignette, 12가지 RAG 변형 비교)에서 dense+sparse+cross-encoder reranking 조합이 precision 0.68+, nDCG@10 0.67+로 최고 — 이 문서의 결론과 정합 |
 
