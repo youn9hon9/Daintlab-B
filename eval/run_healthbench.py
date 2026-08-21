@@ -660,6 +660,9 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
         "dataset": args.dataset,
         "run_name": args.run_name,
         "candidate_sha": args.candidate_sha,
+        "evaluation_protocol": (
+            f"{args.dataset}-{args.sampling}-{len(selected)}-r{args.repeats}"
+        ),
         "sampling": args.sampling if args.dataset == "conquer_val" else "random",
         "sample_manifest_sha256": manifest,
         "sample_coverage": sample_coverage(examples, selected),
@@ -692,9 +695,8 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
             "axis_scores": {key: statistics.fmean(values) for key, values in axis_values.items()},
             "theme_scores": {key: statistics.fmean(values) for key, values in theme_values.items()},
             "warning": (
-                f"{len(selected)}-sample proxy; not a leaderboard estimate"
-                if len(selected) < 30
-                else None
+                f"{len(selected)}-sample local public-data proxy; "
+                "not a leaderboard estimate"
             ),
         },
         "records": records,

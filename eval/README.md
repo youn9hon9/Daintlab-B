@@ -54,7 +54,7 @@ Put the judge credential in the ignored `.env` file:
 HEALTHBENCH_JUDGE_API_KEY=...
 ```
 
-Then run the fixed representative profile used for candidate comparisons:
+Then run the coverage-v2 profile used for new candidate comparisons:
 
 ```bash
 python -m eval.run_healthbench \
@@ -62,8 +62,8 @@ python -m eval.run_healthbench \
   --run-name Y2 \
   --candidate-sha SHA_OR_LABEL \
   --dataset conquer_val \
-  --sampling representative \
-  --samples 16 \
+  --sampling coverage \
+  --samples 32 \
   --repeats 1 \
   --generation-concurrency 2 \
   --score
@@ -74,10 +74,10 @@ Inference failures receive zero; judge failures are reported and excluded.
 The bootstrap interval and score are development signals, not leaderboard
 predictions.
 
-The 16-sample representative panel is a regression gate, not a promotion
-decision. For a candidate that passes it, use the 32-sample metadata-coverage
-panel through `proxy-confirm.cmd`. The coverage sampler uses only public tags
-and structural metadata; it never inspects prompt or rubric text.
+The previous 16-sample representative results are legacy-v1 references and
+must not be ranked directly against coverage-v2. The coverage sampler uses
+only public tags and structural metadata; it never inspects prompt or rubric
+text.
 
 ## Run without host Python
 
@@ -89,7 +89,7 @@ docker run --rm `
   -v "${PWD}:/workspace" `
   -w /workspace `
   python:3.12-slim `
-  sh -lc "pip install -q -r requirements.txt && python -m eval.run_healthbench --endpoint http://host.docker.internal:8000/v1 --sampling representative --samples 16"
+  sh -lc "pip install -q -r requirements.txt && python -m eval.run_healthbench --endpoint http://host.docker.internal:8000/v1 --sampling coverage --samples 32"
 ```
 
 ## Useful options

@@ -3,15 +3,16 @@
 ## 결론
 
 16개는 빠른 회귀 탐지와 timeout 확인에는 충분하지만 후보 승격이나 작은 품질 차이를 확정하기에는
-부족하다. 로컬 프록시는 다음 두 단계로 운용한다.
+부족하다. 과거 비교선 보존보다 평가의 대표성과 실패 탐지력을 우선하므로 기본 로컬 프록시를
+32개 coverage 프로토콜로 교체한다.
 
-| 단계 | 명령 | 표본 | 선정 | 용도 |
+| 프로토콜 | 명령 | 표본 | 선정 | 용도 |
 |---|---|---:|---|---|
-| Gate | `.\proxy <branch>` | 16 | theme 비례 고정 표본 | 매 버전 회귀·완주·지연 확인 |
-| Confirm | `.\proxy-confirm <branch>` | 32 | 메타데이터 coverage | 승격 전 품질·행동 범위 확인 |
+| legacy-v1 | 없음 | 16 | theme 비례 고정 표본 | 과거 결과 해석만 |
+| coverage-v2 | `.\proxy <branch>` | 32 | 메타데이터 coverage | 모든 신규 후보 평가 |
 
-두 단계 모두 로컬 개발 신호이며 비공개 리더보드 점수의 추정치는 아니다. 16개에서 작은 차이가
-나거나 32개 신뢰구간이 크게 겹치면 우열을 확정하지 않는다.
+두 프로토콜의 점수는 직접 순위 비교하지 않는다. coverage-v2 역시 로컬 개발 신호이며 비공개
+리더보드 점수의 추정치는 아니다. 32개 신뢰구간이 크게 겹치면 우열을 확정하지 않는다.
 
 ## 기존 16개 패널의 진단
 
@@ -50,7 +51,7 @@ hallucination·attribution과 RAG용 faithfulness·relevancy·context precision/
 
 ## 32개 coverage 패널
 
-Confirm 패널은 prompt나 rubric 문장을 읽지 않고 다음 공개 메타데이터만 사용한다.
+기본 패널은 prompt나 rubric 문장을 읽지 않고 다음 공개 메타데이터만 사용한다.
 
 1. 7개 theme
 2. physician-agreed category
@@ -64,20 +65,13 @@ greedy coverage로 희소 범주를 먼저 포함한 뒤, 남는 자리는 301�
 
 ## 판정 규칙
 
-Gate에서는 다음을 본다.
-
-- 16/16 완주
+- 32/32 완주와 17개 category coverage
 - inference·judge 실패 0
 - 평균뿐 아니라 최대 지연과 timeout 건수
-- 기준선 대비 큰 축별 회귀 여부
-
-Gate를 통과하고 실제 승격 가치가 있는 후보만 Confirm을 실행한다. Confirm에서는 다음을 추가로 본다.
-
-- 32/32 완주와 17개 category coverage
 - 총점 95% 신뢰구간
 - accuracy, completeness, context awareness, instruction following, communication quality
 - 7개 theme 중 특정 영역의 큰 회귀
-- Gate와 Confirm에서 개선 방향이 일치하는지
+- 같은 coverage-v2 manifest를 사용한 기준선 대비 개선 방향
 
 동일 모델의 반복 안정성이 중요할 때는 표본 수를 줄여 반복하기보다 32개 패널을 유지하고
 `repeats=2` 이상으로 worst-of-n을 별도 확인한다. 다만 기본 자동 명령은 시간과 비용을 위해

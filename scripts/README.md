@@ -21,19 +21,11 @@
 - 커밋 메시지 컨벤션 검사와 버전 추출
 - 빈 포트와 미사용 Lunit API 키 선점
 - 임시 worktree 생성과 Docker 빌드
-- representative 16개 scored 평가
+- coverage 32개 scored 평가
 - 결과·로그 저장과 컨테이너 정리
 
-이 기본 명령은 빠른 회귀 게이트다. 16개를 통과해 승격을 검토할 후보만 다음 명령으로
-32개 coverage 확인 평가를 실행한다.
-
-```powershell
-.\proxy-confirm yh-submission
-.\proxy-confirm yh-submission2
-```
-
-확인 평가는 버전 뒤에 `-P32`를 붙여 결과를 분리한다. 예를 들어 F001은
-`F001-P32`로 기록된다. 공개 메타데이터인 theme, physician-agreed category, axis,
+2026-08-22부터 기본 프로토콜은 `conquer_val-coverage-32-r1`이다. 공개 메타데이터인
+theme, physician-agreed category, axis,
 단일/멀티턴과 rubric 개수 구간의 커버리지를 우선하고, 원문이나 개별 rubric 내용은
 선정에 사용하지 않는다.
 
@@ -69,12 +61,12 @@ HEALTHBENCH_JUDGE_API_KEY=...
 정상 실행 화면은 준비 메시지 이후 다음처럼 진행된다.
 
 ```text
-[B001] 평가 시작 | 총 16개
-[B001] 01/16 완료
-[B001] 02/16 완료
+[B002] 평가 시작 | 총 32개
+[B002] 01/32 완료
+[B002] 02/32 완료
 ...
-[B001] 16/16 완료
-[B001] 종료 | 52.31점 | 성공 16/16 | 341.2초
+[B002] 32/32 완료
+[B002] 종료 | 52.31점 | 성공 32/32 | 682.4초
 ```
 
 상세 데이터는 화면에 펼치지 않고 `eval/results/<version>/`에 저장한다.
