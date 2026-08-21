@@ -6,13 +6,20 @@ from dataclasses import dataclass
 from src.errors import ConfigurationError
 
 
-# F002 control budgets. These values define evaluated model behavior and must
+# F004 control budgets. These values define evaluated model behavior and must
 # change in source (with a new F version), never through deployment environment.
-# Carried forward unchanged from the F001 defaults: F001's own telemetry (max
-# model latency 41.74s, 0/16 requests over 60s) gave no evidence that these
-# ceilings were binding, so loosening them here would be an unjustified
-# second variable alongside the ownership refactor. See F002 candidate notes
-# for the per-value rationale.
+#
+# F003 changed upstream/request/final-reserve/mcp-tool timeouts AND
+# concurrency together (all "D5's throughput cluster" at once) and got 11/32
+# success (down from F002's 29/32) with 20x HTTP 502 + 1x 504. That result
+# cannot tell us whether the 30s upstream timeout or the concurrency=6 change
+# caused the collapse -- exactly the multi-variable confound this repo's own
+# incidents (B001, F001) warn against, and D5's own local eval already showed
+# the same 30s-upstream-timeout failure signature (11/16, 502s from
+# ReadTimeout) even though its real Trial passed. F004 isolates concurrency
+# as the only tested variable: timeouts revert to F002's values, and only
+# UPSTREAM_CONCURRENCY changes, from F002's 2 toward D5's 6 in one smaller
+# step (4), per both F002's and F003's own postmortem recommendations.
 UPSTREAM_TIMEOUT_SECONDS = 50.0
 REQUEST_TIMEOUT_SECONDS = 120.0
 RETRIEVAL_TIMEOUT_SECONDS = 40.0
@@ -20,12 +27,19 @@ FINAL_GENERATION_RESERVE_SECONDS = 50.0
 MCP_TOOL_TIMEOUT_SECONDS = 18.0
 MCP_TERMINATE_ON_CLOSE = False
 UPSTREAM_RETRIES = 1
-UPSTREAM_CONCURRENCY = 2
+UPSTREAM_CONCURRENCY = 4
 UPSTREAM_PRIORITY_SLOTS = 1
 RETRY_BASE_SECONDS = 0.5
 RETRY_MAX_SECONDS = 8.0
 MAX_GENERATION_ROUNDS = 3
 MAX_RETRIEVALS_PER_ANSWER = 1
+# The retrieval-shape cluster below is deliberately left at F001/F002's
+# tighter, locally-validated values instead of D5's larger defaults (5
+# rounds, 3 MCP calls, 20,000/16,000 char budgets). D5's real Trial success
+# says nothing about whether its retrieval-shape values were necessary; no
+# postmortem (Y2 timeout incident, F001, F002) has implicated these fields,
+# so copying them here would be an unjustified second variable alongside the
+# throughput realignment above.
 MAX_RETRIEVAL_MODEL_ROUNDS = 4
 MAX_RETRIEVAL_MCP_CALLS = 2
 MAX_MCP_RESULT_CHARS = 8_000

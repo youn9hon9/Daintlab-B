@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import sys
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -23,6 +24,11 @@ from src.schemas import ChatCompletionRequest
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    # docs/evaluations/TELEMETRY.md collects the candidate container's stdout.
+    # logging.basicConfig defaults to stderr, and the local proxy's docker-logs
+    # collection treats stderr output as an error, which silently dropped all
+    # runtime_telemetry for F003. See F004 candidate notes.
+    stream=sys.stdout,
 )
 logger = logging.getLogger(__name__)
 

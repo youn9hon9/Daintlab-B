@@ -3,7 +3,17 @@
 후보 모델별 로컬 프록시 결과와 실제 리더보드 피드백의 인덱스다. 결과 문서는
 사실 기록이며, 일반화된 설계 지식은 [wiki](../wiki/README.md)에 둔다.
 
-## 현재 판단
+> **기준선 변경 (2026-08-22, origin/dev):** Y2는 실제 Trial에서
+> `coeval_failed_timeout`으로 탈락했다. 공식 best model이자 실제 Trial 성공
+> 기준선은 **D5**(`b76170e15242a0c046ae7d892998de10f9d404fc`, Trial 42.48점)다.
+> 로컬 프록시 프로토콜도 16개 `legacy-v1`에서 32개 `coverage-v2`(생성 동시성 4,
+> 문항당 120초, 평가 본체 420초, 실패 시 `promotion_eligible=false`)로 바뀌었다.
+> 아래 표의 16개 행은 옛 프로토콜 결과이며 32개 `coverage-v2` 결과와 점수를
+> 직접 비교하지 않는다. 전체 근거는 `git show origin/dev:docs/evaluations/BASELINES.md`와
+> `git show origin/dev:docs/evaluations/incidents/Y2_COEVAL_TIMEOUT.md` 참고
+> (이 브랜치에는 병합하지 않음).
+
+## 현재 판단 (legacy-v1, 16문항 — 옛 프로토콜)
 
 | 후보 | 표본 | 점수 | 성공률 | 평균 모델 지연 | 판단 |
 |---|---:|---:|---:|---:|---|
@@ -17,9 +27,31 @@
 | [Y4](candidates/Y4.md) | 16 | 38.86 | 100% | 41.07초 | Y3 동일 모델 재측정; 버전 이름 충돌 |
 | [Y5](candidates/Y5.md) | 평가 대기 | - | - | - | `yh-submission`의 Y2 복귀·법령 schema 최적화 |
 | [F001](candidates/F001.md) | 16 | 42.88 | 100% | 19.12초 | Y2 대비 -11.80점, 지연은 -33.23초; role 태깅 승격 보류, 원인 미분리 |
-| [F002](candidates/F002.md) | 평가 대기 | - | - | - | budget 소유권을 `src/config.py` 상수로 이전(값 변경 없음), F001 관측 근거로 각 값 독립 판단 |
 
-`*` D5 지연은 성공 요청만의 평균이다.
+`*` D5 지연은 성공 요청만의 평균이다. D5의 legacy-v1 성공률(68.75%)은 옛 로컬
+timeout 때문이며, 실제 Trial은 42.48점으로 성공했다 — 위 기준선 변경 안내 참고.
+
+## 현재 판단 (coverage-v2, 32문항 — 현재 표준 프로토콜)
+
+| 후보 | 표본 | 점수 | 성공률 | 평균 모델 지연 | 판단 |
+|---|---:|---:|---:|---:|---|
+| [B002](candidates/B002.md) | 32 | 46.43 | 87.50% | 57.14초 | Y2 계열 장시간 예산, 502 4건, `promotion_eligible=false` |
+| [F002](candidates/F002.md) | 32 | 46.88 | 90.63% | 29.68초 | B002와 동석수(신뢰구간 겹침), 502 3건, `promotion_eligible=false` |
+| [F003](candidates/F003.md) | 32 | 19.50 | 34.38% | 34.62초 | **폐기.** timeout 원복+동시성 6을 한 번에 바꿔 502 20건·504 1건, 원인 미분리 |
+| [F004](candidates/F004.md) | 32 (×2 실행) | 58.03 / 43.84 | 96.88% / 75.00% | 31.30초 / 상승 | **품질 양호, 안정성 미달.** 동일 코드 재실행에서 성공 31→24건, 점수 -14.19점. 양쪽 다 성공한 23문항만 비교하면 차이 0.44점 — 답변 품질은 동일, 실패·지연의 실행별 변동이 원인. telemetry 미수집으로 원인(upstream vs MCP vs 동시성) 미확정 |
+| [F005](candidates/F005.md) | 32 | **58.57** | **100%** | 30.41초 | **승격됨 — 현재 frontier 로컬 기준선.** stderr 트립와이어 제거로 telemetry 첫 부분 수집(queue wait 0ms, RAG 2건 모두 retrieval 40초 timeout) |
+| [F006](candidates/F006.md) | 평가 대기 | - | - | - | runtime 무변경(F005의 8개 안전조건 이미 충족). citation 근거정합성 관측(문자 3-gram overlap, 답변 미수정)과 `mcp_tool_cancelled` telemetry 추가 |
+
+B002·F002·F003·F004는 32/32를 완주하지 못해 승격되지 않았다. **F005가
+32/32·58.57점으로 처음 승격됐다** — F004의 timeout/동시성 정렬을 그대로
+유지한 채 uvicorn stderr 트립와이어만 제거한 결과다. telemetry로 확인한
+바로는 로컬 동시성 4에서 queue 적체는 병목이 아니었고, 주 지연은 upstream
+initial 응답 자체와 RAG 2건의 retrieval timeout이었다. dev는 F006에 "runtime
+숫자와 품질 변경을 같은 버전에 섞지 않는다"를 포함한 8개 안전 조건을 못박았고,
+F005의 현재 값이 이미 전부를 만족해 F006은 runtime을 바꾸지 않는다. 대신
+F001 이후 미뤄뒀던 wiki 06(근거정합성) 축을 관측 전용으로 처음 시도한다.
+다음 표준 로컬 기준선은 F005이며, dev의 안전조건 7번(동일 SHA 2회 연속
+32/32)은 F005·F006이 함께 충족해야 한다.
 
 초기 8개 탐색 실험은 [U1](candidates/U1.md), [D2](candidates/D2.md),
 [U2](candidates/U2.md)를 참고한다. 표본이 달라 위 표의 대표 평가와 직접 순위를

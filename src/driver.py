@@ -16,7 +16,11 @@ from src.retrieval import RetrievalRunner
 from src.routing import should_offer_retrieval
 from src.safety import assess_risk
 from src.schemas import InputMessage, RetrievalEnvelope
-from src.validation import remove_unknown_citations, validate_answer
+from src.validation import (
+    assess_citation_grounding,
+    remove_unknown_citations,
+    validate_answer,
+)
 from src.tooling import (
     RETRIEVE_TOOL,
     assistant_message_for_history,
@@ -253,6 +257,25 @@ class Driver:
                 )
             if result.missing_citation_despite_evidence:
                 logger.warning("citation_missing repair_skipped=latency_policy")
+
+            grounding_checks = assess_citation_grounding(
+                final_content, last_envelope.evidence
+            )
+            if grounding_checks:
+                low_grounding = [c for c in grounding_checks if c.low_grounding]
+                logger.info(
+                    "citation_grounding_checked citations=%s low_grounding=%s "
+                    "min_overlap=%s",
+                    len(grounding_checks),
+                    len(low_grounding),
+                    min(c.overlap_ratio for c in grounding_checks),
+                )
+                for check in low_grounding:
+                    logger.warning(
+                        "citation_grounding_low citation=%s overlap_ratio=%s",
+                        check.citation,
+                        check.overlap_ratio,
+                    )
 
         return final_content
 

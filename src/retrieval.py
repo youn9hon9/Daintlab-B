@@ -285,11 +285,10 @@ class RetrievalRunner:
                                         # while the failed attempt still counts
                                         # against the global MCP budget.
                                         seen_mcp_calls.discard(call_key)
-                                    logger.warning(
-                                        "mcp_tool_failed tool=%s error_type=%s",
-                                        name,
-                                        type(result).__name__,
-                                    )
+                                    # mcp_gateway.call_tool already logs
+                                    # mcp_tool_failed with latency before
+                                    # raising, so this branch only handles the
+                                    # tool-result bookkeeping.
                                     self._append_tool_error(
                                         messages,
                                         call,
