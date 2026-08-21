@@ -167,6 +167,17 @@ class MCPGateway:
                 arguments,
                 read_timeout_seconds=self.settings.mcp_tool_timeout_seconds,
             )
+        except asyncio.CancelledError:
+            # The enclosing retrieval budget (asyncio.timeout in driver.py) can
+            # cancel this call mid-flight. Log it distinctly from an ordinary
+            # failure so telemetry can tell "the retrieval timeout cut off an
+            # in-flight MCP call" apart from "no MCP call was ever attempted."
+            logger.warning(
+                "mcp_tool_cancelled tool=%s latency_ms=%s",
+                name,
+                round((loop.time() - started) * 1000),
+            )
+            raise
         except Exception as exc:
             logger.warning(
                 "mcp_tool_failed tool=%s latency_ms=%s error_type=%s",
