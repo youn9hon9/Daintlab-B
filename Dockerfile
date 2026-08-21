@@ -4,6 +4,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
+ENV LUNIT_FM_API_KEY=lunit_1yjKQXo0dAwotlkf4x1b0aBk6qCtQl_RM5m91hZ_qRE
+
 WORKDIR /app
 
 COPY requirements.txt .
@@ -16,4 +18,3 @@ COPY prompts ./prompts
 EXPOSE 8000
 
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
-
