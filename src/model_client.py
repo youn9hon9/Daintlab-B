@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import math
 import random
@@ -202,6 +203,18 @@ class LunitModelClient:
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
+
+        logger.info(
+            "l2_input phase=%s messages=%s message_chars=%s tools=%s "
+            "tool_schema_chars=%s",
+            phase,
+            len(messages),
+            len(json.dumps(messages, ensure_ascii=False, default=str)),
+            len(tools) if tools else 0,
+            len(json.dumps(tools, ensure_ascii=False, default=str))
+            if tools
+            else 0,
+        )
 
         retry_limit = (
             self.settings.upstream_retries

@@ -159,15 +159,32 @@ class MCPGateway:
         if name not in self._allowed_tools:
             raise ValueError(f"MCP tool is not allow-listed: {name}")
         client = self._require_client()
-        result = await client.call_tool(
-            name,
-            arguments,
-            read_timeout_seconds=self.settings.mcp_tool_timeout_seconds,
-        )
+        loop = asyncio.get_running_loop()
+        started = loop.time()
+        try:
+            result = await client.call_tool(
+                name,
+                arguments,
+                read_timeout_seconds=self.settings.mcp_tool_timeout_seconds,
+            )
+        except Exception as exc:
+            logger.warning(
+                "mcp_tool_failed tool=%s latency_ms=%s error_type=%s",
+                name,
+                round((loop.time() - started) * 1000),
+                type(exc).__name__,
+            )
+            raise
         payload = result.model_dump(
             mode="json",
             by_alias=True,
             exclude_none=True,
+        )
+        logger.info(
+            "mcp_tool_complete tool=%s latency_ms=%s status=%s",
+            name,
+            round((loop.time() - started) * 1000),
+            "error" if payload.get("isError") is True else "ok",
         )
         raw_content = json.dumps(
             payload,

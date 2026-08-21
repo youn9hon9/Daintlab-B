@@ -6,26 +6,36 @@ from dataclasses import dataclass
 from src.errors import ConfigurationError
 
 
-# F002 control budgets. These values define evaluated model behavior and must
+# F003 control budgets. These values define evaluated model behavior and must
 # change in source (with a new F version), never through deployment environment.
-# Carried forward unchanged from the F001 defaults: F001's own telemetry (max
-# model latency 41.74s, 0/16 requests over 60s) gave no evidence that these
-# ceilings were binding, so loosening them here would be an unjustified
-# second variable alongside the ownership refactor. See F002 candidate notes
-# for the per-value rationale.
-UPSTREAM_TIMEOUT_SECONDS = 50.0
-REQUEST_TIMEOUT_SECONDS = 120.0
+#
+# The throughput/per-call cluster below (upstream timeout, request timeout,
+# final-generation reserve, MCP tool timeout, concurrency) is realigned to
+# D5 (b76170e15242a0c046ae7d892998de10f9d404fc), the only runtime profile with
+# a validated real-Trial pass (42.48). Y2's longer-budget, concurrency=2
+# profile is the one that produced coeval_failed_timeout in the real Trial
+# (see docs/evaluations/incidents/Y2_COEVAL_TIMEOUT.md on origin/dev), and
+# F001/F002 inherited that same concurrency=2 shape.
+UPSTREAM_TIMEOUT_SECONDS = 30.0
+REQUEST_TIMEOUT_SECONDS = 90.0
 RETRIEVAL_TIMEOUT_SECONDS = 40.0
-FINAL_GENERATION_RESERVE_SECONDS = 50.0
-MCP_TOOL_TIMEOUT_SECONDS = 18.0
+FINAL_GENERATION_RESERVE_SECONDS = 35.0
+MCP_TOOL_TIMEOUT_SECONDS = 20.0
 MCP_TERMINATE_ON_CLOSE = False
 UPSTREAM_RETRIES = 1
-UPSTREAM_CONCURRENCY = 2
+UPSTREAM_CONCURRENCY = 6
 UPSTREAM_PRIORITY_SLOTS = 1
 RETRY_BASE_SECONDS = 0.5
 RETRY_MAX_SECONDS = 8.0
 MAX_GENERATION_ROUNDS = 3
 MAX_RETRIEVALS_PER_ANSWER = 1
+# The retrieval-shape cluster below is deliberately left at F001/F002's
+# tighter, locally-validated values instead of D5's larger defaults (5
+# rounds, 3 MCP calls, 20,000/16,000 char budgets). D5's real Trial success
+# says nothing about whether its retrieval-shape values were necessary; no
+# postmortem (Y2 timeout incident, F001, F002) has implicated these fields,
+# so copying them here would be an unjustified second variable alongside the
+# throughput realignment above.
 MAX_RETRIEVAL_MODEL_ROUNDS = 4
 MAX_RETRIEVAL_MCP_CALLS = 2
 MAX_MCP_RESULT_CHARS = 8_000
