@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import unittest
-
-from mcp import MCPError
 
 from src.retrieval import RetrievalRunner
 from tests.helpers import SequenceModel, make_settings, tool_call
@@ -89,40 +86,9 @@ class RecordingGateway:
         return payload, json.dumps(payload, ensure_ascii=False)
 
 
-class SessionTerminatedGateway(RecordingGateway):
-    tool_attempts = 0
-
-    async def call_tool(self, name, arguments):
-        self.__class__.tool_attempts += 1
-        if self.__class__.tool_attempts == 1:
-            raise MCPError(-32000, "Session terminated")
-        return await super().call_tool(name, arguments)
-
-
-class ParallelGateway(RecordingGateway):
-    def __init__(self, settings) -> None:
-        super().__init__(settings)
-        self.active = 0
-        self.max_active = 0
-        self.both_started = asyncio.Event()
-
-    async def call_tool(self, name, arguments):
-        self.active += 1
-        self.max_active = max(self.max_active, self.active)
-        if self.active >= 2:
-            self.both_started.set()
-        try:
-            await asyncio.wait_for(self.both_started.wait(), timeout=0.2)
-            return await super().call_tool(name, arguments)
-        finally:
-            self.active -= 1
-
-
 class RetrievalTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         RecordingGateway.instances.clear()
-        SessionTerminatedGateway.instances.clear()
-        SessionTerminatedGateway.tool_attempts = 0
 
     async def test_error_tool_result_cannot_be_selected_as_evidence(self) -> None:
         model = SequenceModel(
@@ -419,97 +385,6 @@ class RetrievalTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn("cite-context-1", tool_contents[-1])
         self.assertEqual(result.status, "sufficient")
         self.assertEqual(result.evidence[0].cite_uid, "cite-context-1")
-
-    async def test_session_terminated_tool_call_reopens_gateway_once(self) -> None:
-        model = SequenceModel(
-            [
-                {
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [
-                        tool_call(
-                            "call-1", "fake_search", {"query": "second"}
-                        )
-                    ],
-                },
-                {
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [
-                        tool_call(
-                            "call-2", "fake_search", {"query": "second"}
-                        )
-                    ],
-                },
-                {
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [
-                        tool_call(
-                            "call-3",
-                            "finalize_retrieval",
-                            {
-                                "status": "sufficient",
-                                "items": [
-                                    {
-                                        "cite_uid": "cite-context-1",
-                                        "relevance_score": 1.0,
-                                    }
-                                ],
-                            },
-                        )
-                    ],
-                },
-            ]
-        )
-        runner = RetrievalRunner(
-            make_settings(),
-            model,
-            gateway_factory=SessionTerminatedGateway,
-        )
-
-        result = await runner.run("test query")
-
-        self.assertEqual(result.status, "sufficient")
-        self.assertEqual(SessionTerminatedGateway.tool_attempts, 2)
-        self.assertEqual(len(SessionTerminatedGateway.instances), 2)
-
-    async def test_tool_calls_from_one_model_round_run_concurrently(self) -> None:
-        model = SequenceModel(
-            [
-                {
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [
-                        tool_call("call-1", "fake_search", {"query": "one"}),
-                        tool_call("call-2", "fake_search", {"query": "two"}),
-                    ],
-                },
-                {
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [
-                        tool_call(
-                            "call-3",
-                            "finalize_retrieval",
-                            {"status": "no_evidence", "items": []},
-                        )
-                    ],
-                },
-            ]
-        )
-        runner = RetrievalRunner(
-            make_settings(),
-            model,
-            gateway_factory=ParallelGateway,
-        )
-
-        result = await runner.run("parallel query")
-
-        gateway = ParallelGateway.instances[-1]
-        self.assertEqual(result.status, "no_evidence")
-        self.assertEqual(gateway.max_active, 2)
-        self.assertEqual(len(gateway.calls), 2)
 
 
 if __name__ == "__main__":

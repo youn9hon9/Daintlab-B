@@ -127,12 +127,7 @@ def create_app(
             ):
                 answer = await request.app.state.driver.generate(parsed.messages)
         except TimeoutError:
-            elapsed_ms = round((time.monotonic() - started) * 1000)
-            logger.warning(
-                "request_timed_out id=%s latency_ms=%s",
-                request_id,
-                elapsed_ms,
-            )
+            logger.warning("request_timed_out id=%s", request_id)
             return _error_response(
                 504,
                 "The driver exceeded the request time limit.",
