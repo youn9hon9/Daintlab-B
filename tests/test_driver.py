@@ -47,7 +47,10 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
             [{"role": "assistant", "content": "Direct-only answer"}]
         )
         driver = Driver(
-            make_settings(retrieval_enabled=False),
+            make_settings(
+                retrieval_enabled=False,
+                retrieval_gate_enabled=True,
+            ),
             model_client=model,
         )
 
@@ -76,17 +79,53 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
             ]
         )
         driver = Driver(
-            make_settings(retrieval_enabled=False),
+            make_settings(
+                retrieval_enabled=False,
+                retrieval_gate_enabled=True,
+            ),
             model_client=model,
         )
 
         with self.assertRaisesRegex(
             UpstreamProtocolError,
-            "while retrieval is disabled",
+            "while retrieval was not offered",
         ):
             await driver.generate(
                 [InputMessage(role="user", content="General health question")]
             )
+
+    async def test_retrieval_gate_keeps_general_question_direct(self) -> None:
+        model = SequenceModel(
+            [{"role": "assistant", "content": "General direct answer"}]
+        )
+        driver = Driver(
+            make_settings(retrieval_gate_enabled=True),
+            model_client=model,
+        )
+
+        await driver.generate(
+            [InputMessage(role="user", content="머리가 아픈데 어떻게 할까요?")]
+        )
+
+        self.assertIsNone(model.calls[0]["tools"])
+
+    async def test_retrieval_gate_exposes_tool_for_guideline_question(self) -> None:
+        model = SequenceModel(
+            [{"role": "assistant", "content": "Guideline-based answer"}]
+        )
+        driver = Driver(
+            make_settings(retrieval_gate_enabled=True),
+            model_client=model,
+        )
+
+        await driver.generate(
+            [InputMessage(role="user", content="최신 고혈압 가이드라인을 알려주세요")]
+        )
+
+        self.assertEqual(
+            model.calls[0]["tools"][0]["function"]["name"],
+            "retrieve_relevant_content",
+        )
 
     async def test_generation_retrieval_generation_flow(self) -> None:
         model = SequenceModel(

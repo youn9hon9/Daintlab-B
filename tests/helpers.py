@@ -35,6 +35,7 @@ def make_settings(**overrides: Any) -> Settings:
         "max_selected_evidence": 3,
         "citation_repair_min_seconds": 0.5,
         "retrieval_enabled": True,
+        "retrieval_gate_enabled": False,
     }
     values.update(overrides)
     return Settings(**values)

@@ -12,6 +12,7 @@ from src.mcp_gateway import MCPGateway
 from src.model_client import LunitModelClient
 from src.prompts import GENERATION_SYSTEM_PROMPT
 from src.retrieval import RetrievalRunner
+from src.routing import should_offer_retrieval
 from src.safety import assess_risk
 from src.schemas import InputMessage, RetrievalEnvelope
 from src.validation import build_repair_instruction, validate_answer
@@ -57,6 +58,10 @@ class Driver:
             - self.settings.final_generation_reserve_seconds
         )
         assessment = assess_risk(history)
+        retrieval_allowed = self.settings.retrieval_enabled and (
+            not self.settings.retrieval_gate_enabled
+            or should_offer_retrieval(history)
+        )
         conversation = [message.model_dump() for message in history]
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": GENERATION_SYSTEM_PROMPT},
@@ -105,16 +110,16 @@ class Driver:
                     messages,
                     tools=(
                         [RETRIEVE_TOOL]
-                        if self.settings.retrieval_enabled
+                        if retrieval_allowed
                         else None
                     ),
                     phase="initial",
                     retry_deadline=initial_retry_deadline,
                 )
             calls = validated_tool_calls(assistant)
-            if calls and not self.settings.retrieval_enabled:
+            if calls and not retrieval_allowed:
                 raise UpstreamProtocolError(
-                    "Lunit FM attempted a tool call while retrieval is disabled"
+                    "Lunit FM attempted a tool call while retrieval was not offered"
                 )
             if final_phase and calls:
                 raise UpstreamProtocolError(

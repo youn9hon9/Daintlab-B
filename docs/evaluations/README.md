@@ -22,6 +22,7 @@
 | [B005](candidates/B005.md) | 평가 대기 | - | - | - | 120초 요청·50초 upstream 통제 실험 |
 | [B006](candidates/B006.md) | 평가 대기 | - | - | - | timeout 고정·upstream 동시성 5 |
 | [B007](candidates/B007.md) | 평가 대기 | - | - | - | Retrieval OFF paired ablation |
+| [B008](candidates/B008.md) | 평가 대기 | - | - | - | 외부 근거 요구 기반 Retrieval gate |
 
 `*` D5 지연은 성공 요청만의 평균이다.
 

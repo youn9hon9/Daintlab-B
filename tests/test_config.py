@@ -28,7 +28,8 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.max_retrieval_context_chars, 20_000)
         self.assertEqual(settings.max_evidence_chars, 16_000)
         self.assertEqual(settings.max_selected_evidence, 2)
-        self.assertFalse(settings.retrieval_enabled)
+        self.assertTrue(settings.retrieval_enabled)
+        self.assertTrue(settings.retrieval_gate_enabled)
 
     def test_runtime_budget_environment_is_ignored(self) -> None:
         with patch.dict(

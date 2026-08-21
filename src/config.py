@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from src.errors import ConfigurationError
 
 
-# B007 retrieval-off ablation. These values define evaluated model behavior and must
+# B008 evidence-required retrieval gate. These values define model behavior and must
 # change in source (with a new B version), never through deployment environment.
 UPSTREAM_TIMEOUT_SECONDS = 50.0
 REQUEST_TIMEOUT_SECONDS = 120.0
@@ -28,7 +28,8 @@ MAX_RETRIEVAL_CONTEXT_CHARS = 20_000
 MAX_EVIDENCE_CHARS = 16_000
 MAX_SELECTED_EVIDENCE = 2
 CITATION_REPAIR_MIN_SECONDS = 15.0
-RETRIEVAL_ENABLED = False
+RETRIEVAL_ENABLED = True
+RETRIEVAL_GATE_ENABLED = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +60,7 @@ class Settings:
     max_selected_evidence: int
     citation_repair_min_seconds: float
     retrieval_enabled: bool
+    retrieval_gate_enabled: bool
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -97,6 +99,7 @@ class Settings:
             max_selected_evidence=MAX_SELECTED_EVIDENCE,
             citation_repair_min_seconds=CITATION_REPAIR_MIN_SECONDS,
             retrieval_enabled=RETRIEVAL_ENABLED,
+            retrieval_gate_enabled=RETRIEVAL_GATE_ENABLED,
         )
         if (
             settings.final_generation_reserve_seconds
