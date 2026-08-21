@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from src.errors import ConfigurationError
 
 
-# B005 balanced timeout budgets. These values define evaluated model behavior and must
+# B006 throughput control budgets. These values define evaluated model behavior and must
 # change in source (with a new B version), never through deployment environment.
 UPSTREAM_TIMEOUT_SECONDS = 50.0
 REQUEST_TIMEOUT_SECONDS = 120.0
@@ -15,7 +15,7 @@ FINAL_GENERATION_RESERVE_SECONDS = 50.0
 MCP_TOOL_TIMEOUT_SECONDS = 20.0
 MCP_TERMINATE_ON_CLOSE = False
 UPSTREAM_RETRIES = 1
-UPSTREAM_CONCURRENCY = 4
+UPSTREAM_CONCURRENCY = 5
 UPSTREAM_PRIORITY_SLOTS = 1
 RETRY_BASE_SECONDS = 0.5
 RETRY_MAX_SECONDS = 8.0

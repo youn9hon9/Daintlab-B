@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import sys
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -23,6 +24,10 @@ from src.schemas import ChatCompletionRequest
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    # The evaluation harness parses candidate telemetry from stdout. Keeping
+    # structured application logs off stderr prevents docker-log collection
+    # from being treated as a failed native command by PowerShell.
+    stream=sys.stdout,
 )
 logger = logging.getLogger(__name__)
 
