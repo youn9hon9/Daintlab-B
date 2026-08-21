@@ -85,7 +85,6 @@ class Driver:
                 "role": "user",
                 "content": json.dumps(
                     {
-                        "task": "Answer the latest user message.",
                         "conversation": conversation,
                         "risk_flags": assessment.model_dump(mode="json"),
                         "response_guidance": guidance.model_dump(mode="json"),
