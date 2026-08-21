@@ -95,8 +95,33 @@ function Get-LunitKeyNames {
             }
         }
     }
+
+    # A terminal can be killed while its Docker containers keep running. In
+    # that case the file lease disappears, so also exclude credentials found
+    # in active Daintlab candidate containers. Secret values stay in memory
+    # and are never printed or written to metadata.
+    $activeValues = @{}
+    $containerIds = @(
+        & docker ps --filter "name=daintlab-b-" --format "{{.ID}}" 2>$null
+    )
+    if ($LASTEXITCODE -eq 0) {
+        foreach ($containerId in $containerIds) {
+            $containerEnv = @(
+                & docker inspect --format "{{range .Config.Env}}{{println .}}{{end}}" $containerId 2>$null
+            )
+            if ($LASTEXITCODE -ne 0) {
+                continue
+            }
+            foreach ($line in $containerEnv) {
+                if ($line -match "^LUNIT_FM_API_KEY=(.+)$") {
+                    $activeValues[$matches[1]] = $true
+                }
+            }
+        }
+    }
     return @(
         $candidates |
+            Where-Object { -not $activeValues.ContainsKey($_.Value) } |
             Sort-Object @{ Expression = { if ($_.Name -eq "LUNIT_FM_API_KEY") { 0 } else { 1 } } }, Name |
             ForEach-Object { $_.Name }
     )
