@@ -186,6 +186,7 @@ class LunitModelClient:
         payload: dict[str, Any] = {
             "model": self.settings.lunit_fm_model,
             "messages": messages,
+            "max_tokens": 1024,
         }
         if tools:
             payload["tools"] = tools
