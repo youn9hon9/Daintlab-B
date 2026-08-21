@@ -14,6 +14,7 @@
 | [D5](candidates/D5.md) | 16 | 36.52 | 68.75% | 40.86초* | 성공 응답 품질은 높으나 timeout |
 | [Y2](candidates/Y2.md) | 16 | **54.68** | **100%** | 52.35초 | 현재 품질·완주 기준선 |
 | [Y3](candidates/Y3.md) | 16 | 44.30 | 100% | 48.41초 | guidance 회귀, 승격 보류 |
+| [Y4](candidates/Y4.md) | 평가 대기 | - | - | - | routing·budget·repair 동시 변경 |
 
 `*` D5 지연은 성공 요청만의 평균이다.
 
