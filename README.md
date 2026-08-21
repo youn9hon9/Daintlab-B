@@ -1,114 +1,33 @@
-# Daintlab-B — Lunit Hackathon Driver
+# Daintlab-B local evaluation workspace
 
-Lunit L2의 Retrieval·Generation 2단계를 연결하고 Lunit MCP tools로 근거를 수집하는 OpenAI-compatible multi-turn driver다.
+`dev` is the local proxy-evaluation branch. It contains only the reusable
+evaluation harness and project documentation; submission model code lives on
+candidate branches such as `yh-submission`.
 
-## 제출 계약
+## Layout
 
-- `GET /v1/models`
-- `POST /v1/chat/completions`
-- `0.0.0.0:8000`
-- Repository root의 `Dockerfile`
-- Evaluation VM에서 5분 이내 image build
-- 제출 브랜치: `lunit/hackathon-submission`
-- 제출 값: 브랜치 HEAD의 40자리 SHA와 `Lunit/L2-preview`
+- `eval/`: deterministic HealthBench/CoEval proxy evaluator
+- `docs/`: competition notes, implementation references, and candidate results
+- `requirements.txt`: evaluator-only Python dependency
 
-구현 계획과 제출 전 전체 체크리스트는 [HACKATHON_PLAN.md](HACKATHON_PLAN.md)를 참고한다.
+The harness evaluates an already running OpenAI-compatible endpoint. It does
+not build, serve, or submit a model.
 
-## 구조
-
-```text
-Evaluator messages
-  → L2 Generation
-      → retrieve_relevant_content
-          → L2 Retrieval
-          → live MCP tools
-          → finalize_retrieval
-      → selected evidence
-  → L2 final answer
-```
-
-- Generation에는 `retrieve_relevant_content`만 제공한다.
-- Retrieval에는 live MCP tools와 `finalize_retrieval`을 제공한다.
-- 실제 tool result에 존재하는 `cite_uid`만 최종 evidence로 전달한다.
-- 요청에 포함된 전체 대화가 source of truth이며 server-side session에 의존하지 않는다.
-
-## 환경변수
+## Quick start
 
 ```bash
-export LUNIT_FM_API_KEY="lunit_..."
-export LUNIT_FM_API_URL="https://model.hackathon.lunit.io"
-export LUNIT_FM_MODEL="Lunit/L2-preview"
-export LUNIT_MCP_URL="https://mcp.hackathon.lunit.io/mcp"
+python -m pip install -r requirements.txt
+python -m eval.run_healthbench \
+  --endpoint http://127.0.0.1:8000/v1 \
+  --sampling representative \
+  --samples 16
 ```
 
-전체 설정은 [.env.example](.env.example)에 있다. 실제 API key를 `.env`, Dockerfile, image, Git 또는 로그에 남기지 않는다.
+Add `--score` to use the judge. Store its key only in the ignored `.env` file:
 
-## 로컬 실행
-
-Python 3.12 이상을 권장한다.
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements-dev.txt
-uvicorn app:app --host 0.0.0.0 --port 8000
+```dotenv
+HEALTHBENCH_JUDGE_API_KEY=...
 ```
 
-다른 terminal에서 확인한다.
-
-```bash
-bash scripts/smoke_test.sh
-```
-
-API key가 없으면 `/v1/models`만 확인하고 live chat test는 건너뛴다.
-
-MCP 연결과 live tool schema만 먼저 확인하려면 다음을 실행한다.
-
-```bash
-python -m scripts.check_mcp
-```
-
-## 테스트
-
-테스트는 실제 Lunit endpoint 대신 fake L2/MCP를 사용하므로 API key 없이 실행된다.
-
-```bash
-python -m unittest discover -s tests -v
-```
-
-## Docker
-
-```bash
-docker build -t daintlab-b:local .
-docker run --rm \
-  -p 8000:8000 \
-  -e LUNIT_FM_API_KEY="$LUNIT_FM_API_KEY" \
-  daintlab-b:local
-```
-
-Clean build 시간도 확인한다.
-
-```bash
-time docker build --no-cache -t daintlab-b:build-test .
-```
-
-## 제출 직전
-
-아래 작업은 local endpoint와 Dashboard baseline이 모두 정상일 때 수행한다.
-
-```bash
-git switch -c lunit/hackathon-submission
-git add .
-git commit -m "Prepare Lunit hackathon submission"
-git push -u origin lunit/hackathon-submission
-git rev-parse lunit/hackathon-submission
-```
-
-출력된 40자리 SHA와 실제 사용 모델 `Lunit/L2-preview`를 제출 페이지에 입력하고, evaluation history의 마지막 제출이 해당 SHA인지 확인한다.
-
-## 공식 문서
-
-- [제출 가이드](docs/guides/Lunit_Submission_Guide.md)
-- [L2 가이드](docs/guides/Lunit_FM_L2_Guide.md)
-- [Model API 가이드](docs/guides/Lunit_Model_API_Guide.md)
-- [MCP Tools 가이드](docs/guides/Lunit_MCP_Tools_Guide.md)
+See [eval/README.md](eval/README.md) for all evaluation modes and
+[docs/README.md](docs/README.md) for the documentation index.

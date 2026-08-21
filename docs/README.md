@@ -47,4 +47,20 @@
 - 개발 도구와 제출 runtime을 분리한다. 평가 환경은 격리되어 있으므로 임의 외부 API나 런타임 다운로드에 의존하지 않는다.
 - 복잡한 기능은 baseline 대비 측정 가능한 개선이 확인된 경우에만 제출 경로에 넣는다.
 
-상세한 구현 판단과 단계별 체크리스트는 [Engineering Playbook](engineering_playbook.md)을 참고한다.
+상세한 구현 판단과 단계별 체크리스트는 [Engineering Playbook](engineering/playbook.md)을 참고한다.
+
+## 평가 피드백
+
+- [D1 평가 피드백](evaluations/D1.md)
+- [U1 평가 피드백](evaluations/U1.md)
+- [D2 평가 피드백](evaluations/D2.md)
+- [U2 평가 피드백](evaluations/U2.md)
+- [D3 평가 피드백](evaluations/D3.md)
+- [D4 평가 피드백](evaluations/D4.md)
+- [Y1 평가 피드백](evaluations/Y1.md)
+- [D5 평가 피드백](evaluations/D5.md)
+- [Y2 평가 피드백](evaluations/Y2.md)
+
+## 실행 계획
+
+- [Hackathon 실행 계획](planning/HACKATHON_PLAN.md)

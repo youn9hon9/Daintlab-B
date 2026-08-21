@@ -4,8 +4,13 @@
 !.env.example
 .lunit_api_key
 .venv/
+.worktrees/
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Local evaluation artifacts and downloaded public benchmark data
+eval/.cache/
+eval/results/
