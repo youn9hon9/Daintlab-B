@@ -6,16 +6,16 @@ from dataclasses import dataclass
 from src.errors import ConfigurationError
 
 
-# B002 control budgets. These values define evaluated model behavior and must
+# B003 D5 Trial control budgets. These values define evaluated model behavior and must
 # change in source (with a new B version), never through deployment environment.
-UPSTREAM_TIMEOUT_SECONDS = 75.0
-REQUEST_TIMEOUT_SECONDS = 170.0
-RETRIEVAL_TIMEOUT_SECONDS = 65.0
-FINAL_GENERATION_RESERVE_SECONDS = 75.0
-MCP_TOOL_TIMEOUT_SECONDS = 25.0
+UPSTREAM_TIMEOUT_SECONDS = 30.0
+REQUEST_TIMEOUT_SECONDS = 90.0
+RETRIEVAL_TIMEOUT_SECONDS = 40.0
+FINAL_GENERATION_RESERVE_SECONDS = 35.0
+MCP_TOOL_TIMEOUT_SECONDS = 20.0
 MCP_TERMINATE_ON_CLOSE = False
 UPSTREAM_RETRIES = 1
-UPSTREAM_CONCURRENCY = 2
+UPSTREAM_CONCURRENCY = 6
 UPSTREAM_PRIORITY_SLOTS = 1
 RETRY_BASE_SECONDS = 0.5
 RETRY_MAX_SECONDS = 8.0

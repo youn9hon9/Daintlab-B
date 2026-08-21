@@ -183,11 +183,6 @@ class LunitModelClient:
             settings.upstream_concurrency,
             reserved_priority_slots=settings.upstream_priority_slots,
         )
-        # httpx2 can terminate the process when multiple requests race through
-        # the first connection setup. Serialize only that cold connection;
-        # normal configured concurrency resumes after any HTTP response.
-        self._cold_start_lock = asyncio.Lock()
-        self._transport_warmed = False
 
     async def chat(
         self,
@@ -244,10 +239,10 @@ class LunitModelClient:
                 ) as queue_wait:
                     attempt_started = loop.time()
                     try:
-                        response = await self._post_with_cold_start_guard(
+                        response = await self._client.post(
                             endpoint,
                             headers=headers,
-                            payload=payload,
+                            json=payload,
                         )
                     finally:
                         attempt_latency = loop.time() - attempt_started
@@ -314,35 +309,6 @@ class LunitModelClient:
             return self._extract_message(data)
 
         raise UpstreamError("Lunit FM request failed after retries") from last_error
-
-    async def _post_with_cold_start_guard(
-        self,
-        endpoint: str,
-        *,
-        headers: dict[str, str],
-        payload: dict[str, Any],
-    ) -> Any:
-        if self._transport_warmed:
-            return await self._client.post(
-                endpoint,
-                headers=headers,
-                json=payload,
-            )
-
-        async with self._cold_start_lock:
-            if self._transport_warmed:
-                return await self._client.post(
-                    endpoint,
-                    headers=headers,
-                    json=payload,
-                )
-            response = await self._client.post(
-                endpoint,
-                headers=headers,
-                json=payload,
-            )
-            self._transport_warmed = True
-            return response
 
     async def _sleep_before_retry(
         self,

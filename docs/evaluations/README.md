@@ -16,7 +16,8 @@
 | [Y3](candidates/Y3.md) | 16 | 44.30 | 100% | 48.41초 | guidance 회귀, 승격 보류 |
 | [Y4](candidates/Y4.md) | 16 | 38.86 | 100% | 41.07초 | Y3 동일 모델 재측정; 버전 이름 충돌 |
 | [B001](candidates/B001.md) | 16 | 34.78 | 100% | 43.38초 | 품질 급락; 승격 거부 |
-| [B002](candidates/B002.md) | 평가 대기 | - | - | - | filtering 제거·Y2 계열 telemetry 대조군 |
+| [B002](candidates/B002.md) | 32 | 46.43 | 87.50% | 57.14초 | 4건 502·17분 28초; 승격 거부 |
+| [B003](candidates/B003.md) | 평가 대기 | - | - | - | 실제 Trial 성공 D5 runtime 대조군 |
 
 `*` D5 지연은 성공 요청만의 평균이다.
 
