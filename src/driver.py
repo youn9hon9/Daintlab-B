@@ -103,11 +103,19 @@ class Driver:
             else:
                 assistant = await self.model_client.chat(
                     messages,
-                    tools=[RETRIEVE_TOOL],
+                    tools=(
+                        [RETRIEVE_TOOL]
+                        if self.settings.retrieval_enabled
+                        else None
+                    ),
                     phase="initial",
                     retry_deadline=initial_retry_deadline,
                 )
             calls = validated_tool_calls(assistant)
+            if calls and not self.settings.retrieval_enabled:
+                raise UpstreamProtocolError(
+                    "Lunit FM attempted a tool call while retrieval is disabled"
+                )
             if final_phase and calls:
                 raise UpstreamProtocolError(
                     "Lunit FM attempted a tool call during final generation"

@@ -42,6 +42,52 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
             "retrieve_relevant_content",
         )
 
+    async def test_retrieval_off_does_not_expose_generation_tool(self) -> None:
+        model = SequenceModel(
+            [{"role": "assistant", "content": "Direct-only answer"}]
+        )
+        driver = Driver(
+            make_settings(retrieval_enabled=False),
+            model_client=model,
+        )
+
+        answer = await driver.generate(
+            [InputMessage(role="user", content="General health question")]
+        )
+
+        self.assertEqual(answer, "Direct-only answer")
+        self.assertIsNone(model.calls[0]["tools"])
+        self.assertEqual(model.calls[0]["phase"], "initial")
+
+    async def test_retrieval_off_rejects_unoffered_tool_call(self) -> None:
+        model = SequenceModel(
+            [
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call(
+                            "unexpected",
+                            "retrieve_relevant_content",
+                            {"query": "unoffered retrieval"},
+                        )
+                    ],
+                }
+            ]
+        )
+        driver = Driver(
+            make_settings(retrieval_enabled=False),
+            model_client=model,
+        )
+
+        with self.assertRaisesRegex(
+            UpstreamProtocolError,
+            "while retrieval is disabled",
+        ):
+            await driver.generate(
+                [InputMessage(role="user", content="General health question")]
+            )
+
     async def test_generation_retrieval_generation_flow(self) -> None:
         model = SequenceModel(
             [
