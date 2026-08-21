@@ -56,6 +56,7 @@ class Settings:
     max_retrieval_context_chars: int
     max_evidence_chars: int
     max_selected_evidence: int
+    citation_repair_min_seconds: float
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -110,6 +111,9 @@ class Settings:
             ),
             max_evidence_chars=_int_env("MAX_EVIDENCE_CHARS", 24_000),
             max_selected_evidence=_int_env("MAX_SELECTED_EVIDENCE", 3),
+            citation_repair_min_seconds=_float_env(
+                "CITATION_REPAIR_MIN_SECONDS", 15.0, minimum=0.0
+            ),
         )
         if (
             settings.final_generation_reserve_seconds

@@ -31,6 +31,7 @@ def make_settings(**overrides: Any) -> Settings:
         "max_retrieval_context_chars": 3000,
         "max_evidence_chars": 10_000,
         "max_selected_evidence": 3,
+        "citation_repair_min_seconds": 0.5,
     }
     values.update(overrides)
     return Settings(**values)

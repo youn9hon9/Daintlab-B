@@ -12,7 +12,9 @@ from src.mcp_gateway import MCPGateway
 from src.model_client import LunitModelClient
 from src.prompts import GENERATION_SYSTEM_PROMPT
 from src.retrieval import RetrievalRunner
+from src.safety import assess_risk
 from src.schemas import InputMessage, RetrievalEnvelope
+from src.validation import build_repair_instruction, validate_answer
 from src.tooling import (
     RETRIEVE_TOOL,
     assistant_message_for_history,
@@ -41,6 +43,7 @@ class Driver:
     async def generate(self, history: list[InputMessage]) -> str:
         loop = asyncio.get_running_loop()
         started = loop.time()
+        assessment = assess_risk(history)
         conversation = [message.model_dump() for message in history]
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": GENERATION_SYSTEM_PROMPT},
@@ -50,6 +53,7 @@ class Driver:
                     {
                         "task": "Answer the latest user message.",
                         "conversation": conversation,
+                        "risk_flags": assessment.model_dump(mode="json"),
                     },
                     ensure_ascii=False,
                     separators=(",", ":"),
@@ -57,6 +61,8 @@ class Driver:
             },
         ]
         retrieval_count = 0
+        final_content: str | None = None
+        last_envelope: RetrievalEnvelope | None = None
 
         for generation_round in range(self.settings.max_generation_rounds):
             assistant = await self.model_client.chat(
@@ -74,7 +80,8 @@ class Driver:
                         generation_round + 1,
                         retrieval_count,
                     )
-                    return content.strip()
+                    final_content = content.strip()
+                    break
                 raise UpstreamProtocolError(
                     "Lunit FM returned neither text nor tool calls"
                 )
@@ -161,16 +168,64 @@ class Driver:
                                 "available knowledge and state important uncertainty."
                             ),
                         )
+                last_envelope = envelope
                 self._append_tool_result(
                     messages,
                     call,
                     name,
                     envelope.model_dump_json(exclude_none=True),
                 )
+        else:
+            raise UpstreamProtocolError(
+                "Lunit FM did not produce a final answer within the round budget"
+            )
 
-        raise UpstreamProtocolError(
-            "Lunit FM did not produce a final answer within the round budget"
-        )
+        if last_envelope is not None:
+            result = validate_answer(
+                final_content, last_envelope.evidence, last_envelope.status
+            )
+            if result.has_gap:
+                elapsed = loop.time() - started
+                remaining = self.settings.request_timeout_seconds - elapsed
+                if remaining >= self.settings.citation_repair_min_seconds:
+                    messages.append(
+                        assistant_message_for_history(
+                            {"role": "assistant", "content": final_content}
+                        )
+                    )
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": json.dumps(
+                                build_repair_instruction(result),
+                                ensure_ascii=False,
+                                separators=(",", ":"),
+                            ),
+                        }
+                    )
+                    try:
+                        async with asyncio.timeout(remaining):
+                            repaired = await self.model_client.chat(
+                                messages,
+                                tools=[RETRIEVE_TOOL],
+                                tool_choice="none",
+                            )
+                        repaired_content = repaired.get("content")
+                        if isinstance(repaired_content, str) and repaired_content.strip():
+                            final_content = repaired_content.strip()
+                        else:
+                            logger.warning("citation_repair_empty_response")
+                    except TimeoutError:
+                        logger.warning(
+                            "citation_repair_timed_out budget_seconds=%s",
+                            round(remaining, 3),
+                        )
+                else:
+                    logger.info(
+                        "citation_repair_skipped reason=insufficient_time_budget"
+                    )
+
+        return final_content
 
     @staticmethod
     def _append_tool_result(

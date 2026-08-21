@@ -48,3 +48,20 @@ class RetrievalEnvelope(BaseModel):
     note: str = ""
     evidence: list[ResolvedEvidence] = Field(default_factory=list)
 
+
+class RiskFlag(BaseModel):
+    category: str
+    matched_text: str
+    turn_index: int
+
+
+class RiskAssessment(BaseModel):
+    active_categories: list[str] = Field(default_factory=list)
+    flags: list[RiskFlag] = Field(default_factory=list)
+    reassurance_detected: bool = False
+    note: str = ""
+
+    @property
+    def has_risk(self) -> bool:
+        return bool(self.active_categories)
+
