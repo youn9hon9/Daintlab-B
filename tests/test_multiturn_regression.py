@@ -31,6 +31,8 @@ class MultiturnRegressionTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn(
             "chest_pain_cardiac", payload1["risk_flags"]["active_categories"]
         )
+        self.assertIn("response_guidance", payload1)
+        self.assertFalse(payload1["response_guidance"]["clarification_needed"])
 
         # Turn 2: user downplays/reassures -> the turn-1 flag must still be
         # present, and reassurance_detected must be set.

@@ -8,6 +8,7 @@ from typing import Any
 
 from src.config import Settings
 from src.errors import UpstreamProtocolError
+from src.guidance import assess_response_guidance
 from src.mcp_gateway import MCPGateway
 from src.model_client import LunitModelClient
 from src.prompts import GENERATION_SYSTEM_PROMPT
@@ -57,6 +58,7 @@ class Driver:
             - self.settings.final_generation_reserve_seconds
         )
         assessment = assess_risk(history)
+        guidance = assess_response_guidance(history, assessment)
         conversation = [message.model_dump() for message in history]
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": GENERATION_SYSTEM_PROMPT},
@@ -67,6 +69,7 @@ class Driver:
                         "task": "Answer the latest user message.",
                         "conversation": conversation,
                         "risk_flags": assessment.model_dump(mode="json"),
+                        "response_guidance": guidance.model_dump(mode="json"),
                     },
                     ensure_ascii=False,
                     separators=(",", ":"),

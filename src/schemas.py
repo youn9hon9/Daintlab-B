@@ -65,3 +65,10 @@ class RiskAssessment(BaseModel):
     def has_risk(self) -> bool:
         return bool(self.active_categories)
 
+
+class ResponseGuidance(BaseModel):
+    clarification_needed: bool = False
+    missing_context: list[str] = Field(default_factory=list)
+    global_context_needed: bool = False
+    note: str = ""
+
