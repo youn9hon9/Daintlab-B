@@ -38,12 +38,13 @@ timeout 때문이며, 실제 Trial은 42.48점으로 성공했다 — 위 기준
 | [B002](candidates/B002.md) | 32 | 46.43 | 87.50% | 57.14초 | Y2 계열 장시간 예산, 502 4건, `promotion_eligible=false` |
 | [F002](candidates/F002.md) | 32 | 46.88 | 90.63% | 29.68초 | B002와 동석수(신뢰구간 겹침), 502 3건, `promotion_eligible=false` |
 | [F003](candidates/F003.md) | 32 | 19.50 | 34.38% | 34.62초 | **폐기.** timeout 원복+동시성 6을 한 번에 바꿔 502 20건·504 1건, 원인 미분리 |
-| [F004](candidates/F004.md) | 평가 대기 | - | - | - | F002 timeout으로 원복, 동시성만 2→4 단독 변경 + stdout 로깅 버그 수정(telemetry 유실 원인) |
+| [F004](candidates/F004.md) | 32 | **58.03** | 96.88% | 31.30초 | coverage-v2 현재 최고점. 조건부 승격 보류 — 동일 prompt ID 502 1건이 F002부터 3연속 재현, telemetry는 uvicorn stderr+dev 프록시 `$ErrorActionPreference` 문제로 또 유실 |
 
-B002·F002·F003 모두 502/504 실패로 32/32를 완주하지 못해 승격 대상이 아니다.
-F003은 timeout과 동시성을 동시에 바꿔 원인 분리가 안 됐고, telemetry도
-stderr 로깅 버그로 수집되지 못했다 — F004는 두 문제를 각각 고친다. 다음
-표준 로컬 기준선은 여전히 D5의 coverage-v2 재평가다.
+B002·F002·F003·F004 모두 아직 32/32를 완주하지 못해 승격 대상은 아니지만,
+F004는 F003의 timeout·동시성 동시 변경 실수를 고쳐 성공률 96.88%까지
+회복했다. 남은 1건은 F002부터 반복되는 동일 prompt ID라 구조적 문제로 의심된다
+— dev 권고대로 동일 SHA(`4f6ed03e...`) 단독 재실행으로 재현성부터 확인한다.
+다음 표준 로컬 기준선은 여전히 D5의 coverage-v2 재평가다.
 
 초기 8개 탐색 실험은 [U1](candidates/U1.md), [D2](candidates/D2.md),
 [U2](candidates/U2.md)를 참고한다. 표본이 달라 위 표의 대표 평가와 직접 순위를
