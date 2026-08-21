@@ -1,0 +1,16 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+.lunit_api_key
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.coverage
+htmlcov
+docs
+tests
+requirements-dev.txt
+HACKATHON_PLAN.md
