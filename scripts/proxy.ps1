@@ -242,7 +242,9 @@ try {
         -LunitKeyEnv $selectedKeyName `
         -Samples 32 `
         -Sampling coverage `
-        -GenerationConcurrency 2 `
+        -GenerationConcurrency 4 `
+        -TimeoutSeconds 120 `
+        -RunTimeoutSeconds 420 `
         -JudgeConcurrency 8 `
         -Score `
         -DryRun:$DryRun

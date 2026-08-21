@@ -8,6 +8,7 @@
 문항별 구조화 수치는 [평가 결과 JSON](results/README.md)에 함께 보관한다.
 기존 16개 `legacy-v1`과 신규 32개 `coverage-v2`의 해석 기준은
 [로컬 프록시 표본 설계](METHODOLOGY.md)를 따른다.
+현재 best model SHA와 제출 가능한 runtime 기준은 [현재 기준점](BASELINES.md)을 따른다.
 
 ## 현재 판단
 
@@ -20,8 +21,8 @@
 | [D3](candidates/D3.md) | 32 | 51.14 | 100% | 45.75초 | D1보다 빠르지만 품질 우위 불확실 |
 | [D4](candidates/D4.md) | 16 | 27.79 | 75% | 혼합 | 상위 API 502·timeout 영향 |
 | [Y1](candidates/Y1.md) | 16 | 42.60 | 100% | 53.33초 | 첫 16/16 안정 후보 |
-| [D5](candidates/D5.md) | 16 | 36.52 | 68.75% | 40.86초* | 성공 응답 품질은 높으나 timeout |
-| [Y2](candidates/Y2.md) | 16 | **54.68** | **100%** | 52.35초 | 현재 품질·완주 기준선 |
+| [D5](candidates/D5.md) | 16 | 36.52 | 68.75% | 40.86초* | **best model SHA**, 실제 Trial 42.48 성공 |
+| [Y2](candidates/Y2.md) | 16 | **54.68** | **100%** | 52.35초 | D5 파생; 실제 Trial timeout |
 | [Y3](candidates/Y3.md) | 16 | 44.30 | 100% | 48.41초 | guidance 회귀, 승격 보류 |
 | [Y4](candidates/Y4.md) | 16 | 38.86 | 100% | 41.07초 | Y3 동일 모델 재측정; 버전 이름 충돌 |
 | [B001](candidates/B001.md) | 16 | 34.78 | 100% | 43.38초 | 안정적이나 Y2 대비 품질 급락; 승격 거부 |

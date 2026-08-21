@@ -1,6 +1,8 @@
+import asyncio
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from eval.run_healthbench import (
@@ -8,7 +10,10 @@ from eval.run_healthbench import (
     bootstrap_interval,
     calculate_score,
     parse_grader_response,
+    percentile,
     read_secret,
+    run as run_eval,
+    run_timeout_record,
     sample_coverage,
     select_coverage_examples,
     select_examples,
@@ -121,6 +126,66 @@ class LocalHealthBenchTests(unittest.TestCase):
         self.assertIsNotNone(interval)
         self.assertLessEqual(interval[0], 0.75)
         self.assertGreaterEqual(interval[1], 0.75)
+
+    def test_percentile_interpolates_latency(self):
+        self.assertEqual(percentile([1.0, 2.0, 3.0, 4.0], 0.5), 2.5)
+        self.assertEqual(percentile([], 0.95), None)
+
+    def test_run_timeout_is_zero_scored_failure(self):
+        record = run_timeout_record(
+            1,
+            1,
+            {"prompt_id": "sample", "example_tags": ["theme:test"]},
+            True,
+        )
+        self.assertFalse(record["ok"])
+        self.assertEqual(record["status"], "run_timeout")
+        self.assertEqual(record["score"], 0.0)
+
+    def test_run_wall_timeout_cancels_pending_cases(self):
+        examples = [
+            {
+                "prompt_id": str(index),
+                "prompt": [{"role": "user", "content": "test"}],
+                "example_tags": ["theme:test"],
+                "rubrics": [],
+            }
+            for index in range(2)
+        ]
+
+        async def fake_load_examples(*_args):
+            return examples
+
+        async def slow_generate(*_args):
+            await asyncio.sleep(2)
+            return "answer", 2.0
+
+        args = SimpleNamespace(
+            repeats=1,
+            generation_concurrency=1,
+            judge_concurrency=1,
+            run_timeout=1.0,
+            timeout=2.0,
+            dataset="conquer_val",
+            cache_dir=Path("unused"),
+            sampling="random",
+            samples=2,
+            seed=0,
+            model="fake",
+            endpoint="http://unused/v1",
+            score=False,
+            run_name="timeout-test",
+            candidate_sha="test-sha",
+        )
+        with (
+            patch("eval.run_healthbench.load_examples", new=fake_load_examples),
+            patch("eval.run_healthbench.generate_answer", new=slow_generate),
+        ):
+            result = asyncio.run(run_eval(args))
+
+        self.assertEqual(result["summary"]["run_timeout_failed"], 2)
+        self.assertFalse(result["summary"]["promotion_eligible"])
+        self.assertEqual([row["score"] for row in result["records"] if "score" in row], [])
 
     def test_axis_score_uses_tagged_rubrics(self):
         items = [

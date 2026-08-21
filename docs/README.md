@@ -22,6 +22,7 @@ docs/
 | 대회 계약·API·제출 조건 확인 | [competition](competition/README.md) |
 | 로컬 프록시 실행 | [평가 하네스](../eval/README.md) |
 | 후보 성능 비교 | [평가 인덱스](evaluations/README.md) |
+| 현재 best model SHA와 runtime 기준 확인 | [현재 기준점](evaluations/BASELINES.md) |
 | 실패 원인 조사 | [실패 사례](evaluations/incidents/README.md) |
 | 모델 개선 아이디어 도출 | [wiki 인덱스](wiki/README.md) |
 | 현재 우선순위 결정 | [모델 개선 플레이북](wiki/21_에이전트_모델개선_플레이북.md) |
@@ -52,12 +53,19 @@ docs/
 
 ## 현재 기준선
 
-- 품질·완주 기준 후보: **Y2**, representative 16에서 54.68점, 16/16 성공
-- 최근 실험: **Y3**, 44.30점, 16/16 성공
-- Y3 결론: response guidance 확장은 completeness를 높였지만 instruction following과
-  communication을 크게 훼손했다.
-- 다음 돌파구: 프롬프트 규칙 추가가 아니라 Retrieval 단계의 tool schema와 누적
-  context를 줄여 L2 입력 예산을 통제하는 것이다.
+- **현재 best model이자 실제 Trial 기준선은 D5**, SHA
+  `b76170e15242a0c046ae7d892998de10f9d404fc`다. D4가 아니며 실제 Trial에서
+  **42.48점으로 성공**했다.
+- Y2는 D5 파생 후보로 로컬 구 프로토콜에서 54.68점·16/16이었지만 실제 Trial에서
+  `coeval_failed_timeout`으로 결과를 내지 못했다.
+- 집컴 에이전트는 [현재 기준점](evaluations/BASELINES.md)에서 모델 품질 기준과 제출 runtime
+  기준을 반드시 구분한다.
+- 모든 후보 에이전트는 먼저 [Y2 timeout incident](evaluations/incidents/Y2_COEVAL_TIMEOUT.md)를
+  읽어야 한다.
+- 새 로컬 기준선은 D5를 `coverage-v2`로 다시 측정해 만든다. 이후 후보는 D5 대비 품질을
+  비교하면서 420초 안에 32/32와 `promotion_eligible=true`를 만족해야 한다.
+- 다음 돌파구는 timeout 상향이 아니라 Retrieval tool schema, 누적 context와 L2 호출 수를
+  줄여 전체 처리량을 확보하는 것이다.
 
 상세 비교는 [Y3 평가](evaluations/candidates/Y3.md)와
 [입력 예산 전략](wiki/22_입력예산_지연최적화_전략.md)을 따른다.

@@ -368,6 +368,37 @@ def bootstrap_interval(
     return estimates[int(iterations * 0.025)], estimates[int(iterations * 0.975)]
 
 
+def percentile(values: list[float], fraction: float) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * fraction
+    lower = int(position)
+    upper = min(lower + 1, len(ordered) - 1)
+    weight = position - lower
+    return ordered[lower] * (1 - weight) + ordered[upper] * weight
+
+
+def run_timeout_record(
+    position: int,
+    repeat: int,
+    example: dict[str, Any],
+    scored: bool,
+) -> dict[str, Any]:
+    record: dict[str, Any] = {
+        "prompt_id": str(example.get("prompt_id", f"sample-{position}")),
+        "repeat": repeat,
+        "theme": _theme(example),
+        "ok": False,
+        "status": "run_timeout",
+        "error_type": "EvaluationWallTimeout",
+        "error": "The local evaluation wall-clock budget was exhausted.",
+    }
+    if scored:
+        record["score"] = 0.0
+    return record
+
+
 def parse_grader_response(content: str) -> bool:
     cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", content.strip())
     value = json.loads(cleaned)
@@ -515,6 +546,8 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
         raise ValueError("generation concurrency must be at least 1")
     if args.judge_concurrency < 1:
         raise ValueError("judge concurrency must be at least 1")
+    if args.run_timeout < 1:
+        raise ValueError("run timeout must be at least 1 second")
     timeout = httpx.Timeout(args.timeout)
     async with httpx.AsyncClient(timeout=timeout) as client:
         examples = await load_examples(client, args.dataset, args.cache_dir)
@@ -621,9 +654,8 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
             await report_progress("완료")
             return record
 
-        run_started = time.monotonic()
-        records = await asyncio.gather(*[
-            evaluate_example(position, repeat, example)
+        work_items = [
+            (position, repeat, example)
             for position, (repeat, example) in enumerate(
                 (
                     (repeat, example)
@@ -632,11 +664,38 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
                 ),
                 start=1,
             )
-        ])
+        ]
+        tasks = [
+            asyncio.create_task(evaluate_example(position, repeat, example))
+            for position, repeat, example in work_items
+        ]
+        run_started = time.monotonic()
+        _, pending = await asyncio.wait(tasks, timeout=args.run_timeout)
+        timed_out_tasks = set(pending)
+        for task in timed_out_tasks:
+            task.cancel()
+        if timed_out_tasks:
+            await asyncio.gather(*timed_out_tasks, return_exceptions=True)
+
+        records: list[dict[str, Any]] = []
+        for task, (position, repeat, example) in zip(
+            tasks, work_items, strict=True
+        ):
+            if task in timed_out_tasks:
+                records.append(
+                    run_timeout_record(position, repeat, example, args.score)
+                )
+                await report_progress("실패(run-timeout)")
+            else:
+                records.append(task.result())
         wall_seconds = time.monotonic() - run_started
 
     successful = [record for record in records if record["ok"]]
-    model_latencies = [record["model_latency_seconds"] for record in successful]
+    model_latencies = [
+        record["model_latency_seconds"]
+        for record in records
+        if "model_latency_seconds" in record
+    ]
     judge_latencies = [
         record["judge_latency_seconds"]
         for record in successful
@@ -652,6 +711,12 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
             axis_values[axis].append(score)
     mean_score = max(0.0, min(1.0, statistics.fmean(scores))) if scores else None
     interval = bootstrap_interval(records, args.seed)
+    run_timeout_failed = sum(r["status"] == "run_timeout" for r in records)
+    promotion_eligible = (
+        len(successful) == len(records)
+        and run_timeout_failed == 0
+        and all(record["status"] == "complete" for record in records)
+    )
     manifest = hashlib.sha256(
         "\n".join(str(row["prompt_id"]) for row in selected).encode()
     ).hexdigest()
@@ -674,14 +739,23 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
         "scored": args.score,
         "generation_concurrency": args.generation_concurrency,
         "judge_concurrency": args.judge_concurrency,
+        "run_timeout_seconds": args.run_timeout,
+        "request_timeout_seconds": args.timeout,
         "summary": {
             "successful": len(successful),
             "failed": len(records) - len(successful),
             "inference_failed": sum(r["status"] == "inference_failed" for r in records),
             "judge_failed": sum(r["status"] == "judge_failed" for r in records),
+            "run_timeout_failed": run_timeout_failed,
+            "promotion_eligible": promotion_eligible,
             "success_rate": len(successful) / len(records),
             "wall_seconds": wall_seconds,
             "mean_model_latency_seconds": statistics.fmean(model_latencies)
+            if model_latencies
+            else None,
+            "p50_model_latency_seconds": percentile(model_latencies, 0.50),
+            "p95_model_latency_seconds": percentile(model_latencies, 0.95),
+            "max_model_latency_seconds": max(model_latencies)
             if model_latencies
             else None,
             "mean_judge_latency_seconds": statistics.fmean(judge_latencies)
@@ -719,6 +793,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--endpoint", default="http://127.0.0.1:8000/v1")
     parser.add_argument("--model")
     parser.add_argument("--timeout", type=float, default=240.0)
+    parser.add_argument("--run-timeout", type=float, default=420.0)
     parser.add_argument("--generation-concurrency", type=int, default=2)
     parser.add_argument("--score", action="store_true")
     parser.add_argument("--judge-api-url", default="https://api.openai.com/v1")
@@ -755,11 +830,13 @@ def main() -> None:
         if summary["score_100"] is not None
         else "미채점"
     )
+    verdict = "VALID" if summary["promotion_eligible"] else "INVALID"
     print(
-        f"[{args.run_name}] 종료 | {score} | "
+        f"[{args.run_name}] 종료 | {verdict} | {score} | "
         f"성공 {summary['successful']}/"
         f"{summary['successful'] + summary['failed']} | "
-        f"{summary['wall_seconds']:.1f}초",
+        f"{summary['wall_seconds']:.1f}초 | "
+        f"run-timeout {summary['run_timeout_failed']}",
         flush=True,
     )
     print(f"결과: {output}", flush=True)

@@ -14,6 +14,11 @@
 두 프로토콜의 점수는 직접 순위 비교하지 않는다. coverage-v2 역시 로컬 개발 신호이며 비공개
 리더보드 점수의 추정치는 아니다. 32개 신뢰구간이 크게 겹치면 우열을 확정하지 않는다.
 
+Y2가 로컬 16/16 이후 실제 Trial에서 `coeval_failed_timeout`으로 실패했으므로 coverage-v2는
+내용 표본뿐 아니라 runtime 계약도 강제한다. 생성 동시성 4, 요청당 120초, 평가 본체 420초
+제한을 사용하며 미완료 문항은 `run_timeout` 0점으로 기록한다. 실패가 하나라도 있으면
+`promotion_eligible=false`다. 자세한 근거는 [Y2 timeout incident](incidents/Y2_COEVAL_TIMEOUT.md)에 있다.
+
 ## 기존 16개 패널의 진단
 
 `conquer_val` 공개 validation은 301개이고 기존 manifest는 그중 16개다. theme 비율은 원본과

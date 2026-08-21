@@ -58,7 +58,9 @@
 
 ## 현재 핵심 교훈
 
-- Y2는 품질과 16/16 완주를 함께 달성한 기준선이다.
+- 현재 best model이자 실제 Trial 성공 기준선은 D5 SHA
+  `b76170e15242a0c046ae7d892998de10f9d404fc`다. 실제 Trial 42.48점을 냈다.
+  Y2는 실제 Trial timeout으로 기준선에서 탈락했으며, D5의 coverage-v2 재측정이 필요하다.
 - U2와 Y3에서 “문맥을 더 고려하라”는 지시를 늘렸지만 instruction following이
   하락했다. 규칙 추가는 문맥 이해의 대체물이 아니다.
 - Y2/Y3의 retrieval은 21개 tool schema를 한꺼번에 읽고 65초를 소진하는 패턴이

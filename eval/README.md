@@ -65,7 +65,9 @@ python -m eval.run_healthbench \
   --sampling coverage \
   --samples 32 \
   --repeats 1 \
-  --generation-concurrency 2 \
+  --generation-concurrency 4 \
+  --timeout 120 \
+  --run-timeout 420 \
   --score
 ```
 
@@ -78,6 +80,12 @@ The previous 16-sample representative results are legacy-v1 references and
 must not be ranked directly against coverage-v2. The coverage sampler uses
 only public tags and structural metadata; it never inspects prompt or rubric
 text.
+
+Following Y2's real `coeval_failed_timeout`, the automated profile uses four
+concurrent generation requests, a 120-second per-request timeout, and a
+420-second run deadline. Pending cases at the deadline are cancelled, scored
+zero, and make `promotion_eligible` false. See the
+[incident report](../docs/evaluations/incidents/Y2_COEVAL_TIMEOUT.md).
 
 ## Run without host Python
 
@@ -105,6 +113,7 @@ docker run --rm `
 --endpoint http://127.0.0.1:8000/v1
 --model MODEL_ID
 --timeout SECONDS
+--run-timeout SECONDS
 --generation-concurrency N
 --score
 --judge-api-url URL

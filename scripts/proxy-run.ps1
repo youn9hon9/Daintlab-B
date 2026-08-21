@@ -11,19 +11,22 @@ param(
     [int]$Port,
 
     [ValidateRange(1, 10000)]
-    [int]$Samples = 16,
+    [int]$Samples = 32,
 
     [ValidateRange(1, 100)]
     [int]$Repeats = 1,
 
     [ValidateRange(1, 100)]
-    [int]$GenerationConcurrency = 2,
+    [int]$GenerationConcurrency = 4,
 
     [ValidateRange(1, 100)]
     [int]$JudgeConcurrency = 8,
 
     [ValidateRange(1, 3600)]
-    [int]$TimeoutSeconds = 240,
+    [int]$TimeoutSeconds = 120,
+
+    [ValidateRange(30, 3600)]
+    [int]$RunTimeoutSeconds = 420,
 
     [ValidateRange(10, 600)]
     [int]$StartupTimeoutSeconds = 120,
@@ -195,6 +198,8 @@ $plan = [ordered]@{
     sampling = $Sampling
     seed = $Seed
     evaluation_protocol = "$Dataset-$Sampling-$Samples-r$Repeats"
+    request_timeout_seconds = $TimeoutSeconds
+    run_timeout_seconds = $RunTimeoutSeconds
     generation_concurrency = $GenerationConcurrency
     judge_concurrency = if ($Score) { $JudgeConcurrency } else { $null }
     scored = [bool]$Score
@@ -373,6 +378,7 @@ try {
         "--repeats", [string]$Repeats,
         "--seed", [string]$Seed,
         "--timeout", [string]$TimeoutSeconds,
+        "--run-timeout", [string]$RunTimeoutSeconds,
         "--generation-concurrency", [string]$GenerationConcurrency,
         "--output-dir", $containerOutputDir,
         "--env-file", "/workspace/$EnvFile"
