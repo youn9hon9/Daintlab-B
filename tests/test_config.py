@@ -19,7 +19,7 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.mcp_tool_timeout_seconds, 20.0)
         self.assertFalse(settings.mcp_terminate_on_close)
         self.assertEqual(settings.upstream_retries, 1)
-        self.assertEqual(settings.upstream_concurrency, 6)
+        self.assertEqual(settings.upstream_concurrency, 4)
         self.assertEqual(settings.upstream_priority_slots, 1)
         self.assertEqual(settings.max_retrievals_per_answer, 1)
         self.assertEqual(settings.max_retrieval_model_rounds, 5)

@@ -164,6 +164,7 @@ class LunitModelClientTest(unittest.IsolatedAsyncioTestCase):
             FakeSettings(upstream_retries=0, upstream_concurrency=concurrency),
             http_client=http_client,
         )
+        client._transport_warmed = True
         self.assertEqual(client._upstream_limiter.normal_capacity, concurrency)
         self.assertEqual(client._upstream_limiter.capacity, concurrency + 1)
         tasks = [
@@ -184,6 +185,29 @@ class LunitModelClientTest(unittest.IsolatedAsyncioTestCase):
         results = await asyncio.gather(*tasks)
         self.assertEqual(len(results), 5)
         self.assertEqual(http_client.max_active, concurrency)
+
+    async def test_serializes_only_cold_start_connection(self) -> None:
+        http_client = OrderedHTTPClient()
+        client = LunitModelClient(
+            FakeSettings(upstream_retries=0, upstream_concurrency=2),
+            http_client=http_client,
+        )
+        first = asyncio.create_task(
+            client.chat([{"role": "user", "content": "first"}])
+        )
+        second = asyncio.create_task(
+            client.chat([{"role": "user", "content": "second"}])
+        )
+
+        await asyncio.wait_for(http_client.first_started.wait(), timeout=1.0)
+        await asyncio.sleep(0)
+        self.assertEqual(http_client.order, ["first"])
+
+        http_client.release_first.set()
+        await asyncio.wait_for(asyncio.gather(first, second), timeout=1.0)
+
+        self.assertEqual(http_client.order, ["first", "second"])
+        self.assertTrue(client._transport_warmed)
 
     async def test_final_waiter_starts_before_queued_initial_waiter(self) -> None:
         http_client = OrderedHTTPClient()
