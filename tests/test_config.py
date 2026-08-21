@@ -12,10 +12,10 @@ class SettingsTest(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True):
             settings = Settings.from_env()
 
-        self.assertEqual(settings.upstream_timeout_seconds, 30.0)
-        self.assertEqual(settings.request_timeout_seconds, 90.0)
+        self.assertEqual(settings.upstream_timeout_seconds, 50.0)
+        self.assertEqual(settings.request_timeout_seconds, 120.0)
         self.assertEqual(settings.retrieval_timeout_seconds, 40.0)
-        self.assertEqual(settings.final_generation_reserve_seconds, 35.0)
+        self.assertEqual(settings.final_generation_reserve_seconds, 50.0)
         self.assertEqual(settings.mcp_tool_timeout_seconds, 20.0)
         self.assertFalse(settings.mcp_terminate_on_close)
         self.assertEqual(settings.upstream_retries, 1)
@@ -41,7 +41,7 @@ class SettingsTest(unittest.TestCase):
         ):
             settings = Settings.from_env()
 
-        self.assertEqual(settings.request_timeout_seconds, 90.0)
+        self.assertEqual(settings.request_timeout_seconds, 120.0)
         self.assertEqual(settings.max_retrieval_mcp_calls, 3)
         self.assertFalse(settings.mcp_terminate_on_close)
 

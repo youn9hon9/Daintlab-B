@@ -19,6 +19,7 @@
 | [B002](candidates/B002.md) | 32 | 46.43 | 87.50% | 57.14초 | 4건 502·17분 28초; 승격 거부 |
 | [B003](candidates/B003.md) | 평가 대기 | - | - | - | 실제 Trial 성공 D5 runtime 대조군 |
 | [B004](candidates/B004.md) | 평가 대기 | - | - | - | cold-start 보호 + upstream 동시성 4 |
+| [B005](candidates/B005.md) | 평가 대기 | - | - | - | 120초 요청·50초 upstream 통제 실험 |
 
 `*` D5 지연은 성공 요청만의 평균이다.
 
