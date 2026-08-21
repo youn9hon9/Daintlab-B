@@ -39,18 +39,19 @@ timeout 때문이며, 실제 Trial은 42.48점으로 성공했다 — 위 기준
 | [F002](candidates/F002.md) | 32 | 46.88 | 90.63% | 29.68초 | B002와 동석수(신뢰구간 겹침), 502 3건, `promotion_eligible=false` |
 | [F003](candidates/F003.md) | 32 | 19.50 | 34.38% | 34.62초 | **폐기.** timeout 원복+동시성 6을 한 번에 바꿔 502 20건·504 1건, 원인 미분리 |
 | [F004](candidates/F004.md) | 32 (×2 실행) | 58.03 / 43.84 | 96.88% / 75.00% | 31.30초 / 상승 | **품질 양호, 안정성 미달.** 동일 코드 재실행에서 성공 31→24건, 점수 -14.19점. 양쪽 다 성공한 23문항만 비교하면 차이 0.44점 — 답변 품질은 동일, 실패·지연의 실행별 변동이 원인. telemetry 미수집으로 원인(upstream vs MCP vs 동시성) 미확정 |
-| [F005](candidates/F005.md) | 평가 대기 | - | - | - | 모델 코드 무변경. `uvicorn --log-level warning`으로 stderr 트립와이어 제거 — telemetry 병합 차단 원인을 후보 쪽에서 선제 제거 |
+| [F005](candidates/F005.md) | 32 | **58.57** | **100%** | 30.41초 | **승격됨 — 현재 frontier 로컬 기준선.** stderr 트립와이어 제거로 telemetry 첫 부분 수집(queue wait 0ms, RAG 2건 모두 retrieval 40초 timeout) |
+| [F006](candidates/F006.md) | 평가 대기 | - | - | - | runtime 무변경(F005의 8개 안전조건 이미 충족). citation 근거정합성 관측(문자 3-gram overlap, 답변 미수정)과 `mcp_tool_cancelled` telemetry 추가 |
 
-B002·F002·F003·F004 모두 아직 32/32를 완주하지 못해 승격 대상은 아니다.
-F004는 F003의 timeout·동시성 동시 변경 실수를 고쳐 답변 품질과 1차
-성공률(96.88%)을 회복했지만, 동일 SHA 2차 재실행에서 성공률이 75%로
-떨어져 모델이 아니라 **실행 간 안정성**이 문제임이 드러났다. telemetry
-병합이 dev 하네스의 uvicorn stderr 처리 문제로 계속 막혀 있어 원인을
-phase 단위로 특정할 수 없었다. F005는 그 stderr 트립와이어를 후보
-Dockerfile 쪽에서 직접 제거해(uvicorn 자체 부팅·access 로그를
-warning 레벨로 낮춤) 하네스 수정을 기다리지 않고 telemetry 확보를
-시도한다. 모델·serving 로직은 F004와 완전히 동일하다. 다음 표준 로컬
-기준선은 여전히 D5의 coverage-v2 재평가다.
+B002·F002·F003·F004는 32/32를 완주하지 못해 승격되지 않았다. **F005가
+32/32·58.57점으로 처음 승격됐다** — F004의 timeout/동시성 정렬을 그대로
+유지한 채 uvicorn stderr 트립와이어만 제거한 결과다. telemetry로 확인한
+바로는 로컬 동시성 4에서 queue 적체는 병목이 아니었고, 주 지연은 upstream
+initial 응답 자체와 RAG 2건의 retrieval timeout이었다. dev는 F006에 "runtime
+숫자와 품질 변경을 같은 버전에 섞지 않는다"를 포함한 8개 안전 조건을 못박았고,
+F005의 현재 값이 이미 전부를 만족해 F006은 runtime을 바꾸지 않는다. 대신
+F001 이후 미뤄뒀던 wiki 06(근거정합성) 축을 관측 전용으로 처음 시도한다.
+다음 표준 로컬 기준선은 F005이며, dev의 안전조건 7번(동일 SHA 2회 연속
+32/32)은 F005·F006이 함께 충족해야 한다.
 
 초기 8개 탐색 실험은 [U1](candidates/U1.md), [D2](candidates/D2.md),
 [U2](candidates/U2.md)를 참고한다. 표본이 달라 위 표의 대표 평가와 직접 순위를
