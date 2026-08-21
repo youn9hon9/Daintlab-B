@@ -16,6 +16,7 @@
 | [Y3](candidates/Y3.md) | 16 | 44.30 | 100% | 48.41초 | guidance 회귀, 승격 보류 |
 | [Y4](candidates/Y4.md) | 16 | 38.86 | 100% | 41.07초 | Y3 동일 모델 재측정; 버전 이름 충돌 |
 | [Y5](candidates/Y5.md) | 평가 대기 | - | - | - | `yh-submission`의 Y2 복귀·법령 schema 최적화 |
+| [F001](candidates/F001.md) | 평가 대기 | - | - | - | `yh-submission2`(프론티어) F 컨벤션 첫 버전, evidence role 태깅 근거 합성 |
 
 `*` D5 지연은 성공 요청만의 평균이다.
 
