@@ -12,6 +12,13 @@
 > 직접 비교하지 않는다. 전체 근거는 `git show origin/dev:docs/evaluations/BASELINES.md`와
 > `git show origin/dev:docs/evaluations/incidents/Y2_COEVAL_TIMEOUT.md` 참고
 > (이 브랜치에는 병합하지 않음).
+>
+> **실제 Trial 갱신 (2026-08-22):** [F006](candidates/F006.md)이
+> `lunit/hackathon-submission`에 배포되어 실제 Dashboard Trial **45.88점**을
+> 받았다 — D5의 42.48점을 넘는 현재 최고 실제 Trial 기록이다. F006은
+> F004~F005의 runtime(동시성 4, D5 계열 timeout)을 그대로 유지하고
+> 관측 전용 telemetry만 추가했으므로, 이 결과는 그 runtime 프로파일이
+> 실제 Trial에서도 유효함을 보여준다.
 
 ## 현재 판단 (legacy-v1, 16문항 — 옛 프로토콜)
 
@@ -40,7 +47,7 @@ timeout 때문이며, 실제 Trial은 42.48점으로 성공했다 — 위 기준
 | [F003](candidates/F003.md) | 32 | 19.50 | 34.38% | 34.62초 | **폐기.** timeout 원복+동시성 6을 한 번에 바꿔 502 20건·504 1건, 원인 미분리 |
 | [F004](candidates/F004.md) | 32 (×2 실행) | 58.03 / 43.84 | 96.88% / 75.00% | 31.30초 / 상승 | **품질 양호, 안정성 미달.** 동일 코드 재실행에서 성공 31→24건, 점수 -14.19점. 양쪽 다 성공한 23문항만 비교하면 차이 0.44점 — 답변 품질은 동일, 실패·지연의 실행별 변동이 원인. telemetry 미수집으로 원인(upstream vs MCP vs 동시성) 미확정 |
 | [F005](candidates/F005.md) | 32 | **58.57** | **100%** | 30.41초 | **승격됨 — 현재 frontier 로컬 기준선.** stderr 트립와이어 제거로 telemetry 첫 부분 수집(queue wait 0ms, RAG 2건 모두 retrieval 40초 timeout) |
-| [F006](candidates/F006.md) | 평가 대기 | - | - | - | runtime 무변경(F005의 8개 안전조건 이미 충족). citation 근거정합성 관측(문자 3-gram overlap, 답변 미수정)과 `mcp_tool_cancelled` telemetry 추가 |
+| [F006](candidates/F006.md) | 실제 Trial | **45.88** | - | - | **실제 Dashboard Trial 최고 기록**(D5 42.48 대비 +3.40). runtime 무변경(F005와 동일), citation 근거정합성 관측과 `mcp_tool_cancelled` telemetry만 추가. 로컬 coverage-v2 단독 평가는 아직 미확보 |
 
 B002·F002·F003·F004는 32/32를 완주하지 못해 승격되지 않았다. **F005가
 32/32·58.57점으로 처음 승격됐다** — F004의 timeout/동시성 정렬을 그대로
