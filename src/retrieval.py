@@ -14,6 +14,7 @@ from src.evidence import EvidenceRegistry, extract_cite_uids
 from src.mcp_gateway import MCPGateway
 from src.prompts import RETRIEVAL_SYSTEM_PROMPT
 from src.schemas import CitationSelection, RetrievalEnvelope
+from src.tool_filter import select_retrieval_tools
 from src.tooling import (
     FINALIZE_TOOL,
     assistant_message_for_history,
@@ -76,7 +77,8 @@ class RetrievalRunner:
         while round_index < self.settings.max_retrieval_model_rounds:
             try:
                 async with self.gateway_factory(self.settings) as gateway:
-                    mcp_tools = await gateway.list_openai_tools()
+                    all_mcp_tools = await gateway.list_openai_tools()
+                    mcp_tools, _ = select_retrieval_tools(query, all_mcp_tools)
                     allowed_names = {
                         tool["function"]["name"]
                         for tool in mcp_tools

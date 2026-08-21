@@ -4,7 +4,7 @@ The active submission path is split into explicit responsibilities:
 
 - `api.py`: evaluator-facing OpenAI-compatible HTTP contract
 - `driver.py`: generation and conditional-retrieval orchestration
-- `guidance.py`: missing clinical context and jurisdiction guidance flags
+- `tool_filter.py`: high-confidence MCP tool-family filtering with full fallback
 - `retrieval.py`: retrieval-model tool loop and budgets
 - `mcp_gateway.py`: Lunit MCP connection and tool execution
 - `model_client.py`: Lunit model transport, retries, and timeouts
