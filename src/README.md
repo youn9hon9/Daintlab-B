@@ -12,6 +12,5 @@ The active submission path is split into explicit responsibilities:
 - `config.py`: environment-backed endpoints and versioned runtime budgets
 
 The repository-root `app.py` remains a thin entrypoint and the container still
-binds to `0.0.0.0:8000`. Method candidates are developed continuously on
-`yh-submission2`; validated changes are promoted to `yh-submission`. The old
-field-laptop proxy work is retained only on its dedicated backup branch.
+binds to `0.0.0.0:8000`. The local proxy-evaluation harness is maintained on
+the separate `dev` branch.

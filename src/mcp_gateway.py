@@ -185,12 +185,6 @@ class MCPGateway:
             by_alias=True,
             exclude_none=True,
         )
-        logger.info(
-            "mcp_tool_complete tool=%s latency_ms=%s status=%s",
-            name,
-            round((loop.time() - started) * 1000),
-            "error" if payload.get("isError") is True else "ok",
-        )
         raw_content = json.dumps(
             payload,
             ensure_ascii=False,

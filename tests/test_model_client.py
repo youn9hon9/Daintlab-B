@@ -116,6 +116,42 @@ class OrderedHTTPClient:
 
 
 class LunitModelClientTest(unittest.IsolatedAsyncioTestCase):
+    def test_extracts_finish_reason_without_replacing_content(self) -> None:
+        message = LunitModelClient._extract_message(
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "role": "assistant",
+                            "content": "answer",
+                            "reasoning_content": "private",
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 120,
+                    "completion_tokens": 80,
+                    "total_tokens": 200,
+                    "completion_tokens_details": {"reasoning_tokens": 32},
+                    "sensitive_or_unknown": "not logged",
+                },
+            }
+        )
+
+        self.assertEqual(message["content"], "answer")
+        self.assertEqual(message["reasoning_content"], "private")
+        self.assertEqual(message["_finish_reason"], "stop")
+        self.assertEqual(
+            message["_usage"],
+            {
+                "prompt_tokens": 120,
+                "completion_tokens": 80,
+                "total_tokens": 200,
+                "reasoning_tokens": 32,
+            },
+        )
+
     async def test_sends_explicit_max_tokens(self) -> None:
         http_client = SequenceHTTPClient([FakeResponse(200)])
         client = LunitModelClient(FakeSettings(), http_client=http_client)
@@ -125,6 +161,14 @@ class LunitModelClientTest(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertEqual(http_client.requests[0]["json"]["max_tokens"], 384)
+
+    async def test_omits_max_tokens_when_not_set(self) -> None:
+        http_client = SequenceHTTPClient([FakeResponse(200)])
+        client = LunitModelClient(FakeSettings(), http_client=http_client)
+
+        await client.chat([{"role": "user", "content": "question"}])
+
+        self.assertNotIn("max_tokens", http_client.requests[0]["json"])
 
     async def test_retries_http_500_with_full_jitter(self) -> None:
         http_client = SequenceHTTPClient(

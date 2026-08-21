@@ -6,15 +6,15 @@ from dataclasses import dataclass
 from src.errors import ConfigurationError
 
 
-# B010 bounded L2 I/O budget. These values define model behavior and must
+# B013 one-shot model without an explicit upstream output-token ceiling.
 # change in source (with a new B version), never through deployment environment.
-UPSTREAM_TIMEOUT_SECONDS = 30.0
+UPSTREAM_TIMEOUT_SECONDS = 50.0
 REQUEST_TIMEOUT_SECONDS = 120.0
 RETRIEVAL_TIMEOUT_SECONDS = 40.0
 FINAL_GENERATION_RESERVE_SECONDS = 50.0
 MCP_TOOL_TIMEOUT_SECONDS = 20.0
 MCP_TERMINATE_ON_CLOSE = False
-UPSTREAM_RETRIES = 1
+UPSTREAM_RETRIES = 0
 UPSTREAM_CONCURRENCY = 5
 UPSTREAM_PRIORITY_SLOTS = 1
 RETRY_BASE_SECONDS = 0.5
@@ -28,7 +28,7 @@ MAX_RETRIEVAL_CONTEXT_CHARS = 20_000
 MAX_EVIDENCE_CHARS = 16_000
 MAX_SELECTED_EVIDENCE = 2
 CITATION_REPAIR_MIN_SECONDS = 15.0
-RETRIEVAL_ENABLED = True
+RETRIEVAL_ENABLED = False
 RETRIEVAL_GATE_ENABLED = True
 INITIAL_MAX_TOKENS = 768
 RETRIEVAL_MAX_TOKENS = 384

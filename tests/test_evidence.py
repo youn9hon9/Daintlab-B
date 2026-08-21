@@ -54,35 +54,6 @@ class EvidenceRegistryTest(unittest.TestCase):
         self.assertEqual(result.status, "sufficient")
         self.assertEqual(result.evidence[0].source_tool, "fake_search")
 
-    def test_role_defaults_to_primary_and_propagates_when_set(self) -> None:
-        registry = EvidenceRegistry(max_chars=10_000)
-        registry.capture(
-            "fake_search",
-            {"cite_uid": "cite-primary", "content": "main finding"},
-        )
-        registry.capture(
-            "other_search",
-            {"cite_uid": "cite-caveat", "content": "exception"},
-        )
-        selection = CitationSelection.model_validate(
-            {
-                "status": "sufficient",
-                "items": [
-                    {"cite_uid": "cite-primary", "relevance_score": 1.0},
-                    {
-                        "cite_uid": "cite-caveat",
-                        "relevance_score": 0.8,
-                        "role": "caveat",
-                    },
-                ],
-            }
-        )
-
-        result = registry.resolve(selection)
-
-        self.assertEqual(result.evidence[0].role, "primary")
-        self.assertEqual(result.evidence[1].role, "caveat")
-
     def test_selected_evidence_is_limited_to_max_items(self) -> None:
         registry = EvidenceRegistry(max_chars=10_000, max_items=2)
         for index in range(3):

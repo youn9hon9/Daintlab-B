@@ -420,50 +420,6 @@ class RetrievalTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.status, "sufficient")
         self.assertEqual(result.evidence[0].cite_uid, "cite-context-1")
 
-    async def test_finalize_role_tag_propagates_to_resolved_evidence(self) -> None:
-        model = SequenceModel(
-            [
-                {
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [
-                        tool_call(
-                            "call-1", "fake_search", {"query": "second"}
-                        )
-                    ],
-                },
-                {
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [
-                        tool_call(
-                            "call-2",
-                            "finalize_retrieval",
-                            {
-                                "status": "sufficient",
-                                "items": [
-                                    {
-                                        "cite_uid": "cite-context-1",
-                                        "relevance_score": 1.0,
-                                        "role": "caveat",
-                                    }
-                                ],
-                            },
-                        )
-                    ],
-                },
-            ]
-        )
-        runner = RetrievalRunner(
-            make_settings(),
-            model,
-            gateway_factory=RecordingGateway,
-        )
-
-        result = await runner.run("test query")
-
-        self.assertEqual(result.evidence[0].role, "caveat")
-
     async def test_session_terminated_tool_call_reopens_gateway_once(self) -> None:
         model = SequenceModel(
             [

@@ -121,7 +121,6 @@ class EvidenceRegistry:
                     citation=f"[{len(evidence) + 1}]",
                     cite_uid=item.cite_uid,
                     relevance_score=item.relevance_score,
-                    role=item.role,
                     source_tool=stored["source_tool"],
                     payload=payload,
                 )
