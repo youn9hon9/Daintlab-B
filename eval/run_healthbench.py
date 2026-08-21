@@ -114,6 +114,43 @@ def _theme(example: dict[str, Any]) -> str:
     )
 
 
+def _categories(example: dict[str, Any]) -> tuple[str, ...]:
+    tags = example.get("example_tags", example.get("tags", []))
+    return tuple(
+        sorted(
+            str(tag)
+            for tag in tags
+            if str(tag).startswith("physician_agreed_category:")
+        )
+    )
+
+
+def _axes(example: dict[str, Any]) -> tuple[str, ...]:
+    return tuple(
+        sorted(
+            {
+                str(tag)
+                for rubric in example.get("rubrics", [])
+                for tag in rubric.get("tags", [])
+                if str(tag).startswith("axis:")
+            }
+        )
+    )
+
+
+def _turn_bucket(example: dict[str, Any]) -> str:
+    return "multi_turn" if len(example.get("prompt", [])) > 1 else "single_turn"
+
+
+def _rubric_bucket(example: dict[str, Any]) -> str:
+    count = len(example.get("rubrics", []))
+    if count <= 7:
+        return "low"
+    if count <= 14:
+        return "medium"
+    return "high"
+
+
 def select_stratified_examples(
     examples: list[dict[str, Any]], count: int, seed: int
 ) -> list[dict[str, Any]]:
@@ -186,6 +223,130 @@ def select_representative_examples(
         rows = sorted(groups[theme], key=lambda row: str(row["prompt_id"]))
         selected.extend(rng.sample(rows, allocation[theme]))
     return sorted(selected, key=lambda row: str(row["prompt_id"]))
+
+
+def select_coverage_examples(
+    examples: list[dict[str, Any]], count: int, seed: int
+) -> list[dict[str, Any]]:
+    """Select a metadata-diverse panel without inspecting benchmark text."""
+    if count < 1:
+        raise ValueError("samples must be at least 1")
+    if count >= len(examples):
+        return sorted(examples, key=lambda row: str(row["prompt_id"]))
+
+    theme_sizes: dict[str, int] = defaultdict(int)
+    turn_sizes: dict[str, int] = defaultdict(int)
+    rubric_bucket_sizes: dict[str, int] = defaultdict(int)
+    for example in examples:
+        theme_sizes[_theme(example)] += 1
+        turn_sizes[_turn_bucket(example)] += 1
+        rubric_bucket_sizes[_rubric_bucket(example)] += 1
+    theme_targets = {
+        theme: count * size / len(examples) for theme, size in theme_sizes.items()
+    }
+    turn_targets = {
+        bucket: count * size / len(examples) for bucket, size in turn_sizes.items()
+    }
+    rubric_bucket_targets = {
+        bucket: count * size / len(examples)
+        for bucket, size in rubric_bucket_sizes.items()
+    }
+
+    selected: list[dict[str, Any]] = []
+    remaining = list(examples)
+    covered_themes: set[str] = set()
+    covered_categories: set[str] = set()
+    covered_axes: set[str] = set()
+    covered_turns: set[str] = set()
+    covered_rubrics: set[str] = set()
+    theme_counts: dict[str, int] = defaultdict(int)
+    turn_counts: dict[str, int] = defaultdict(int)
+    rubric_bucket_counts: dict[str, int] = defaultdict(int)
+
+    def tie_breaker(example: dict[str, Any]) -> str:
+        value = f"{seed}:{example['prompt_id']}".encode()
+        return hashlib.sha256(value).hexdigest()
+
+    while len(selected) < count:
+        def priority(example: dict[str, Any]) -> tuple[float, int, int, int, str]:
+            theme = _theme(example)
+            categories = set(_categories(example))
+            axes = set(_axes(example))
+            new_categories = len(categories - covered_categories)
+            new_theme = int(theme not in covered_themes)
+            new_axes = len(axes - covered_axes)
+            new_shape = int(_turn_bucket(example) not in covered_turns)
+            new_rubric_bucket = int(_rubric_bucket(example) not in covered_rubrics)
+            theme_deficit = max(0.0, theme_targets[theme] - theme_counts[theme])
+            turn = _turn_bucket(example)
+            rubric_bucket = _rubric_bucket(example)
+            turn_deficit = max(0.0, turn_targets[turn] - turn_counts[turn])
+            rubric_bucket_deficit = max(
+                0.0,
+                rubric_bucket_targets[rubric_bucket]
+                - rubric_bucket_counts[rubric_bucket],
+            )
+            score = (
+                12 * new_categories
+                + 8 * new_theme
+                + 3 * new_axes
+                + 2 * new_shape
+                + 2 * new_rubric_bucket
+                + theme_deficit
+                + turn_deficit
+                + rubric_bucket_deficit
+            )
+            return (
+                score,
+                new_categories,
+                new_theme,
+                new_axes,
+                tie_breaker(example),
+            )
+
+        choice = max(remaining, key=priority)
+        remaining.remove(choice)
+        selected.append(choice)
+        theme = _theme(choice)
+        covered_themes.add(theme)
+        covered_categories.update(_categories(choice))
+        covered_axes.update(_axes(choice))
+        covered_turns.add(_turn_bucket(choice))
+        covered_rubrics.add(_rubric_bucket(choice))
+        theme_counts[theme] += 1
+        turn_counts[_turn_bucket(choice)] += 1
+        rubric_bucket_counts[_rubric_bucket(choice)] += 1
+
+    return sorted(selected, key=lambda row: str(row["prompt_id"]))
+
+
+def sample_coverage(
+    examples: list[dict[str, Any]], selected: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Return aggregate-only diagnostics suitable for committed artifacts."""
+    def counts(values: list[str]) -> dict[str, int]:
+        return {value: values.count(value) for value in sorted(set(values))}
+
+    available_categories = {
+        category for example in examples for category in _categories(example)
+    }
+    selected_categories = [
+        category for example in selected for category in _categories(example)
+    ]
+    return {
+        "source_examples": len(examples),
+        "themes": counts([_theme(example) for example in selected]),
+        "axes": counts([axis for example in selected for axis in _axes(example)]),
+        "physician_agreed_categories": {
+            "available": len(available_categories),
+            "covered": len(set(selected_categories)),
+            "counts": counts(selected_categories),
+        },
+        "turn_shape": counts([_turn_bucket(example) for example in selected]),
+        "rubric_count_bucket": counts(
+            [_rubric_bucket(example) for example in selected]
+        ),
+    }
 
 
 def bootstrap_interval(
@@ -361,6 +522,8 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
             selected = select_stratified_examples(examples, args.samples, args.seed)
         elif args.dataset == "conquer_val" and args.sampling == "representative":
             selected = select_representative_examples(examples, args.samples, args.seed)
+        elif args.dataset == "conquer_val" and args.sampling == "coverage":
+            selected = select_coverage_examples(examples, args.samples, args.seed)
         else:
             selected = select_examples(examples, args.samples, args.seed)
         model = args.model or await resolve_model(client, args.endpoint)
@@ -499,6 +662,7 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
         "candidate_sha": args.candidate_sha,
         "sampling": args.sampling if args.dataset == "conquer_val" else "random",
         "sample_manifest_sha256": manifest,
+        "sample_coverage": sample_coverage(examples, selected),
         "samples": len(selected),
         "repeats": args.repeats,
         "seed": args.seed,
@@ -542,7 +706,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dataset", choices=[*DATASET_URLS, "conquer_val"], default="conquer_val")
     parser.add_argument("--samples", type=int, default=8)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--sampling", choices=["balanced", "representative", "random"], default="balanced")
+    parser.add_argument(
+        "--sampling",
+        choices=["balanced", "representative", "coverage", "random"],
+        default="balanced",
+    )
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--run-name", default="candidate")
     parser.add_argument("--candidate-sha")

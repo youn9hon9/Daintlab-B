@@ -31,7 +31,7 @@ param(
     [ValidateSet("conquer_val", "consensus", "hard", "main")]
     [string]$Dataset = "conquer_val",
 
-    [ValidateSet("balanced", "representative", "random")]
+    [ValidateSet("balanced", "representative", "coverage", "random")]
     [string]$Sampling = "representative",
 
     [int]$Seed = 0,

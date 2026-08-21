@@ -74,6 +74,11 @@ Inference failures receive zero; judge failures are reported and excluded.
 The bootstrap interval and score are development signals, not leaderboard
 predictions.
 
+The 16-sample representative panel is a regression gate, not a promotion
+decision. For a candidate that passes it, use the 32-sample metadata-coverage
+panel through `proxy-confirm.cmd`. The coverage sampler uses only public tags
+and structural metadata; it never inspects prompt or rubric text.
+
 ## Run without host Python
 
 When the candidate is listening on host port 8000, run the evaluator in a
@@ -93,7 +98,7 @@ docker run --rm `
 --dataset conquer_val|consensus|hard|main
 --samples N
 --seed N
---sampling balanced|representative|random
+--sampling balanced|representative|coverage|random
 --repeats N
 --run-name NAME
 --candidate-sha SHA_OR_LABEL

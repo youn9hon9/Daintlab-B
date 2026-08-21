@@ -24,6 +24,19 @@
 - representative 16개 scored 평가
 - 결과·로그 저장과 컨테이너 정리
 
+이 기본 명령은 빠른 회귀 게이트다. 16개를 통과해 승격을 검토할 후보만 다음 명령으로
+32개 coverage 확인 평가를 실행한다.
+
+```powershell
+.\proxy-confirm yh-submission
+.\proxy-confirm yh-submission2
+```
+
+확인 평가는 버전 뒤에 `-P32`를 붙여 결과를 분리한다. 예를 들어 F001은
+`F001-P32`로 기록된다. 공개 메타데이터인 theme, physician-agreed category, axis,
+단일/멀티턴과 rubric 개수 구간의 커버리지를 우선하고, 원문이나 개별 rubric 내용은
+선정에 사용하지 않는다.
+
 ## 병렬 평가
 
 동시에 실행할 터미널 수만큼 서로 다른 키를 루트 `.env`에 준비한다.
@@ -67,6 +80,7 @@ HEALTHBENCH_JUDGE_API_KEY=...
 상세 데이터는 화면에 펼치지 않고 `eval/results/<version>/`에 저장한다.
 
 - 결과 JSON: 점수, 축별 결과와 문항별 상태
+- sample coverage: theme·axis·category·turn shape·rubric 규모의 집계
 - 실행 로그: 위 진행 상황판과 마지막 요약
 - 메타데이터 JSON: 브랜치, 버전, SHA, 시간과 결과 경로
 

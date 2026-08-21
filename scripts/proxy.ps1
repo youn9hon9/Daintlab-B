@@ -3,7 +3,9 @@ param(
     [Parameter(Mandatory = $true, Position = 0)]
     [string]$Branch,
 
-    [switch]$DryRun
+    [switch]$DryRun,
+
+    [switch]$Confirm
 )
 
 Set-StrictMode -Version Latest
@@ -234,14 +236,18 @@ try {
         throw "All configured Lunit API keys are in use. Add another LUNIT_FM_API_KEY_N=... entry to .env."
     }
 
-    Write-Host "[$Version] PREPARING | $track | $resolvedRef"
+    $evaluationRunName = if ($Confirm) { "$Version-P32" } else { $Version }
+    $evaluationSamples = if ($Confirm) { 32 } else { 16 }
+    $evaluationSampling = if ($Confirm) { "coverage" } else { "representative" }
+
+    Write-Host "[$evaluationRunName] PREPARING | $track | $resolvedRef"
     & $runner `
         -Ref $resolvedRef `
-        -RunName $Version `
+        -RunName $evaluationRunName `
         -Port $selectedPort `
         -LunitKeyEnv $selectedKeyName `
-        -Samples 16 `
-        -Sampling representative `
+        -Samples $evaluationSamples `
+        -Sampling $evaluationSampling `
         -GenerationConcurrency 2 `
         -JudgeConcurrency 8 `
         -Score `

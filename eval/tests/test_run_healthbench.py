@@ -9,6 +9,8 @@ from eval.run_healthbench import (
     calculate_score,
     parse_grader_response,
     read_secret,
+    sample_coverage,
+    select_coverage_examples,
     select_examples,
     select_representative_examples,
     select_stratified_examples,
@@ -63,6 +65,51 @@ class LocalHealthBenchTests(unittest.TestCase):
         self.assertEqual(
             sum(item["example_tags"][0] == "theme:b" for item in selected), 1
         )
+
+    def test_coverage_selection_covers_public_metadata(self):
+        examples = []
+        for index, category in enumerate(("one", "two", "three")):
+            examples.append(
+                {
+                    "prompt_id": str(index),
+                    "prompt": [{}] * (1 + index % 2),
+                    "example_tags": [
+                        f"theme:{index % 2}",
+                        f"physician_agreed_category:{category}",
+                    ],
+                    "rubrics": [
+                        {"tags": [f"axis:{index % 2}"]}
+                    ] * (4 + index * 5),
+                }
+            )
+        examples.extend(
+            {
+                "prompt_id": f"filler-{index}",
+                "prompt": [{}],
+                "example_tags": ["theme:0"],
+                "rubrics": [{"tags": ["axis:0"]}],
+            }
+            for index in range(3)
+        )
+        selected = select_coverage_examples(examples, count=3, seed=0)
+        report = sample_coverage(examples, selected)
+        self.assertEqual(report["physician_agreed_categories"]["covered"], 3)
+        self.assertEqual(set(report["turn_shape"]), {"single_turn", "multi_turn"})
+        self.assertEqual(set(report["rubric_count_bucket"]), {"low", "medium"})
+
+    def test_coverage_selection_is_reproducible(self):
+        examples = [
+            {
+                "prompt_id": str(index),
+                "prompt": [{}],
+                "example_tags": [f"theme:{index % 3}"],
+                "rubrics": [{"tags": [f"axis:{index % 2}"]}],
+            }
+            for index in range(20)
+        ]
+        first = select_coverage_examples(examples, count=8, seed=7)
+        second = select_coverage_examples(examples, count=8, seed=7)
+        self.assertEqual(first, second)
 
     def test_bootstrap_groups_repeats_by_prompt(self):
         records = [
