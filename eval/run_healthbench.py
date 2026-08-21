@@ -375,6 +375,19 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
 
         generation_semaphore = asyncio.Semaphore(args.generation_concurrency)
         judge_semaphore = asyncio.Semaphore(args.judge_concurrency)
+        progress_lock = asyncio.Lock()
+        completed_count = 0
+        total_count = len(selected) * args.repeats
+
+        async def report_progress(status: str) -> None:
+            nonlocal completed_count
+            async with progress_lock:
+                completed_count += 1
+                print(
+                    f"[{args.run_name}] {completed_count:02d}/{total_count:02d} "
+                    f"{status}",
+                    flush=True,
+                )
 
         async def evaluate_example(
             position: int, repeat: int, example: dict[str, Any]
@@ -405,7 +418,7 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
                 record["error"] = str(exc)[:300]
                 if args.score:
                     record["score"] = 0.0
-                print(f"[{position}] {prompt_id}: inference_failed")
+                await report_progress("실패(inference)")
                 return record
 
             if args.score:
@@ -438,14 +451,11 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
                     record["ok"] = False
                     record["error_type"] = type(exc).__name__
                     record["error"] = str(exc)[:300]
-                    print(f"[{position}] {prompt_id}: judge_failed")
+                    await report_progress("실패(judge)")
                     return record
             record["status"] = "complete"
             record["ok"] = True
-            print(
-                f"[{position}/{len(selected) * args.repeats}] {prompt_id}: "
-                f"{'ok' if record['ok'] else 'failed'}"
-            )
+            await report_progress("완료")
             return record
 
         run_started = time.monotonic()
@@ -517,7 +527,11 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
             else None,
             "axis_scores": {key: statistics.fmean(values) for key, values in axis_values.items()},
             "theme_scores": {key: statistics.fmean(values) for key, values in theme_values.items()},
-            "warning": "8-sample proxy; not a leaderboard estimate" if len(selected) < 30 else None,
+            "warning": (
+                f"{len(selected)}-sample proxy; not a leaderboard estimate"
+                if len(selected) < 30
+                else None
+            ),
         },
         "records": records,
     }
@@ -565,8 +579,20 @@ def main() -> None:
     safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "-", args.run_name).strip("-") or "candidate"
     output = args.output_dir / f"{safe_name}-{args.dataset}-{args.samples}-{timestamp}.json"
     output.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(json.dumps(result["summary"], indent=2))
-    print(f"Result: {output}")
+    summary = result["summary"]
+    score = (
+        f"{summary['score_100']:.2f}점"
+        if summary["score_100"] is not None
+        else "미채점"
+    )
+    print(
+        f"[{args.run_name}] 종료 | {score} | "
+        f"성공 {summary['successful']}/"
+        f"{summary['successful'] + summary['failed']} | "
+        f"{summary['wall_seconds']:.1f}초",
+        flush=True,
+    )
+    print(f"결과: {output}", flush=True)
 
 
 if __name__ == "__main__":

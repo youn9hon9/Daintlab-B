@@ -111,3 +111,10 @@ docker run --rm `
 
 Do not commit benchmark caches, raw prompts, rubrics, credentials, or generated
 result files.
+
+## Automated PowerShell workflow
+
+On Windows, run `.\proxy <branch>` to resolve and build a candidate,
+allocate an unused port and Lunit key, execute this harness inside Docker, and
+clean up. Multiple terminals can run the command concurrently. See
+[scripts/README.md](../scripts/README.md).

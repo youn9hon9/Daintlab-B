@@ -13,4 +13,5 @@ htmlcov/
 
 # Local evaluation artifacts and downloaded public benchmark data
 eval/.cache/
+eval/.runtime/
 eval/results/

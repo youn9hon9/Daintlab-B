@@ -13,6 +13,15 @@ candidate branches such as `yh-submission`.
 The harness evaluates an already running OpenAI-compatible endpoint. It does
 not build, serve, or submit a model.
 
+## Candidate evaluation
+
+The terminal command takes only the candidate branch. Its version is read from
+the latest commit message:
+
+```powershell
+.\proxy yh-submission
+```
+
 ## Quick start
 
 ```bash
@@ -31,3 +40,6 @@ HEALTHBENCH_JUDGE_API_KEY=...
 
 See [eval/README.md](eval/README.md) for all evaluation modes and
 [docs/README.md](docs/README.md) for the documentation index.
+
+For a one-command Docker workflow, including isolated candidate builds and
+parallel candidate runs, see [scripts/README.md](scripts/README.md).
