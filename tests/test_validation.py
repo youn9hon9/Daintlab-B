@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 from src.schemas import ResolvedEvidence
-from src.validation import build_repair_instruction, validate_answer
+from src.validation import remove_unknown_citations, validate_answer
 
 
 def _evidence(citation: str, cite_uid: str) -> ResolvedEvidence:
@@ -45,13 +45,9 @@ class ValidationTest(unittest.TestCase):
 
         self.assertFalse(result.has_gap)
 
-    def test_repair_instruction_shape(self) -> None:
+    def test_unknown_citation_removal(self) -> None:
         result = validate_answer("근거 [9]", [], "no_evidence")
-
-        payload = build_repair_instruction(result)
-
-        self.assertEqual(payload["task"], "revise_final_answer_for_citation_integrity")
-        self.assertEqual(payload["issues"]["unknown_citations"], ["[9]"])
+        self.assertEqual(remove_unknown_citations("근거 [9]", result), "근거")
 
 
 if __name__ == "__main__":

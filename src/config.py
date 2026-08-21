@@ -72,7 +72,6 @@ class Settings:
     max_retrieval_context_chars: int
     max_evidence_chars: int
     max_selected_evidence: int
-    citation_repair_min_seconds: float
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -91,19 +90,19 @@ class Settings:
                 "LUNIT_MCP_URL", "https://mcp.hackathon.lunit.io/mcp"
             ).strip(),
             upstream_timeout_seconds=_float_env(
-                "UPSTREAM_TIMEOUT_SECONDS", 75.0
+                "UPSTREAM_TIMEOUT_SECONDS", 50.0
             ),
             request_timeout_seconds=_float_env(
-                "REQUEST_TIMEOUT_SECONDS", 170.0
+                "REQUEST_TIMEOUT_SECONDS", 120.0
             ),
             retrieval_timeout_seconds=_float_env(
-                "RETRIEVAL_TIMEOUT_SECONDS", 65.0
+                "RETRIEVAL_TIMEOUT_SECONDS", 40.0
             ),
             final_generation_reserve_seconds=_float_env(
-                "FINAL_GENERATION_RESERVE_SECONDS", 75.0
+                "FINAL_GENERATION_RESERVE_SECONDS", 50.0
             ),
             mcp_tool_timeout_seconds=_float_env(
-                "MCP_TOOL_TIMEOUT_SECONDS", 25.0
+                "MCP_TOOL_TIMEOUT_SECONDS", 18.0
             ),
             mcp_terminate_on_close=_bool_env(
                 "MCP_TERMINATE_ON_CLOSE", False
@@ -120,22 +119,19 @@ class Settings:
                 "MAX_RETRIEVALS_PER_ANSWER", 1
             ),
             max_retrieval_model_rounds=_int_env(
-                "MAX_RETRIEVAL_MODEL_ROUNDS", 5
+                "MAX_RETRIEVAL_MODEL_ROUNDS", 4
             ),
             max_retrieval_mcp_calls=_int_env(
-                "MAX_RETRIEVAL_MCP_CALLS", 3
+                "MAX_RETRIEVAL_MCP_CALLS", 2
             ),
             max_mcp_result_chars=_int_env(
                 "MAX_MCP_RESULT_CHARS", 8_000, minimum=1_024
             ),
             max_retrieval_context_chars=_int_env(
-                "MAX_RETRIEVAL_CONTEXT_CHARS", 20_000, minimum=1_024
+                "MAX_RETRIEVAL_CONTEXT_CHARS", 12_000, minimum=1_024
             ),
-            max_evidence_chars=_int_env("MAX_EVIDENCE_CHARS", 16_000),
+            max_evidence_chars=_int_env("MAX_EVIDENCE_CHARS", 10_000),
             max_selected_evidence=_int_env("MAX_SELECTED_EVIDENCE", 2),
-            citation_repair_min_seconds=_float_env(
-                "CITATION_REPAIR_MIN_SECONDS", 15.0, minimum=0.0
-            ),
         )
         if (
             settings.final_generation_reserve_seconds

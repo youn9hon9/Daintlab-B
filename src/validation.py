@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any
-
 from src.schemas import ResolvedEvidence
 
 
@@ -36,18 +34,11 @@ def validate_answer(
     )
 
 
-def build_repair_instruction(result: CitationValidationResult) -> dict[str, Any]:
-    return {
-        "task": "revise_final_answer_for_citation_integrity",
-        "issues": {
-            "unknown_citations": result.unknown_citations,
-            "missing_citation_despite_evidence": result.missing_citation_despite_evidence,
-        },
-        "instructions": (
-            "Rewrite only the final answer text. Remove or rephrase any citation "
-            "marker with no matching evidence item. If evidence exists and its "
-            "status is sufficient or partial, attach a [n] citation to every "
-            "claim drawn from that evidence. Do not invent new evidence or "
-            "citations. Keep the same language, conclusions, and safety guidance."
-        ),
-    }
+def remove_unknown_citations(
+    content: str, result: CitationValidationResult
+) -> str:
+    cleaned = content
+    for label in result.unknown_citations:
+        cleaned = cleaned.replace(label, "")
+    cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+    return cleaned.strip()

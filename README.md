@@ -27,7 +27,7 @@ Evaluator messages
   → L2 final answer
 ```
 
-- Generation에는 `retrieve_relevant_content`만 제공한다.
+- 외부 근거가 필요한 질문의 Generation에만 `retrieve_relevant_content`를 제공한다.
 - Retrieval에는 live MCP tools와 `finalize_retrieval`을 제공한다.
 - Retrieval의 각 non-final L2 round는 tool 선택을 강제하고, 유효한
   `finalize_retrieval`이 나오면 같은 round의 불필요한 MCP 호출을 생략한다.
@@ -38,11 +38,11 @@ Evaluator messages
 - 일반 의료 질문은 L2 1회로 직접 답하고, 정확한 근거가 필요할 때만 Retrieval을 1회 수행한다.
 - 일반 L2 HTTP attempt는 동시에 최대 6개만 실행하고, RAG 최종 답변용
   priority slot 1개를 별도로 예약하며 `Retry-After`를 반영한다.
-- Retrieval은 최대 L2 5 round·MCP 3 call·선택 evidence 2개로 제한한다.
-- 전체 90초 중 Retrieval은 최대 40초만 사용하고 최종 Generation에 35초를
+- Retrieval은 최대 L2 4 round·MCP 2 call·선택 evidence 2개로 제한한다.
+- 전체 120초 중 Retrieval은 최대 40초만 사용하고 최종 Generation에 50초를
   예약한다.
-- 전체 사용자 대화에서 응급 위험 신호를 유지하고, 근거 답변의 잘못된
-  citation은 남은 시간이 충분할 때 L2가 한 번 교정한다.
+- 전체 사용자 대화에서 응급 위험 신호를 유지한다. 존재하지 않는 citation은
+  규칙으로 제거하며 별도 L2 교정 호출은 하지 않는다.
 
 ## 환경변수
 

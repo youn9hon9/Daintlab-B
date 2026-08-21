@@ -13,9 +13,10 @@ from src.mcp_gateway import MCPGateway
 from src.model_client import LunitModelClient
 from src.prompts import GENERATION_SYSTEM_PROMPT
 from src.retrieval import RetrievalRunner
+from src.routing import should_offer_retrieval
 from src.safety import assess_risk
 from src.schemas import InputMessage, RetrievalEnvelope
-from src.validation import build_repair_instruction, validate_answer
+from src.validation import remove_unknown_citations, validate_answer
 from src.tooling import (
     RETRIEVE_TOOL,
     assistant_message_for_history,
@@ -59,6 +60,7 @@ class Driver:
         )
         assessment = assess_risk(history)
         guidance = assess_response_guidance(history, assessment)
+        retrieval_allowed = should_offer_retrieval(history)
         conversation = [message.model_dump() for message in history]
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": GENERATION_SYSTEM_PROMPT},
@@ -106,7 +108,7 @@ class Driver:
             else:
                 assistant = await self.model_client.chat(
                     messages,
-                    tools=[RETRIEVE_TOOL],
+                    tools=[RETRIEVE_TOOL] if retrieval_allowed else None,
                     phase="initial",
                     retry_deadline=initial_retry_deadline,
                 )
@@ -243,48 +245,14 @@ class Driver:
             result = validate_answer(
                 final_content, last_envelope.evidence, last_envelope.status
             )
-            if result.has_gap:
-                remaining = request_deadline - loop.time()
-                if remaining >= self.settings.citation_repair_min_seconds:
-                    messages.append(
-                        assistant_message_for_history(
-                            {"role": "assistant", "content": final_content}
-                        )
-                    )
-                    messages.append(
-                        {
-                            "role": "user",
-                            "content": json.dumps(
-                                build_repair_instruction(result),
-                                ensure_ascii=False,
-                                separators=(",", ":"),
-                            ),
-                        }
-                    )
-                    try:
-                        async with asyncio.timeout(remaining):
-                            repaired = await self.model_client.chat(
-                                messages,
-                                tools=[RETRIEVE_TOOL],
-                                tool_choice="none",
-                                phase="final",
-                                max_retries=0,
-                                retry_deadline=request_deadline,
-                            )
-                        repaired_content = repaired.get("content")
-                        if isinstance(repaired_content, str) and repaired_content.strip():
-                            final_content = repaired_content.strip()
-                        else:
-                            logger.warning("citation_repair_empty_response")
-                    except TimeoutError:
-                        logger.warning(
-                            "citation_repair_timed_out budget_seconds=%s",
-                            round(remaining, 3),
-                        )
-                else:
-                    logger.info(
-                        "citation_repair_skipped reason=insufficient_time_budget"
-                    )
+            if result.unknown_citations:
+                final_content = remove_unknown_citations(final_content, result)
+                logger.warning(
+                    "unknown_citations_removed count=%s",
+                    len(result.unknown_citations),
+                )
+            if result.missing_citation_despite_evidence:
+                logger.warning("citation_missing repair_skipped=latency_policy")
 
         return final_content
 
