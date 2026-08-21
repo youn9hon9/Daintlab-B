@@ -12,7 +12,7 @@ Lunit L2의 Retrieval·Generation 2단계를 연결하고 Lunit MCP tools로 근
 - 제출 브랜치: `lunit/hackathon-submission`
 - 제출 값: 브랜치 HEAD의 40자리 SHA와 `Lunit/L2-preview`
 
-구현 계획과 제출 전 전체 체크리스트는 [HACKATHON_PLAN.md](HACKATHON_PLAN.md)를 참고한다.
+구현 계획과 제출 전 전체 체크리스트는 [HACKATHON_PLAN.md](docs/planning/HACKATHON_PLAN.md)를 참고한다.
 
 ## 구조
 
@@ -62,7 +62,7 @@ Python 3.12 이상을 권장한다.
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements-dev.txt
+python -m pip install -r requirements.txt
 uvicorn app:app --host 0.0.0.0 --port 8000
 ```
 

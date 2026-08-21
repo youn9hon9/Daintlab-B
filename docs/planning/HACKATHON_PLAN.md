@@ -537,12 +537,12 @@ Patient Simulator는 제출 service가 아니라 개발용 동적 회귀 생성�
 
 공식 문서가 리서치 문서보다 우선한다.
 
-1. [Lunit Hackathon 제출 가이드](guide_line/Lunit_Submission_Guide.md)
-2. [Lunit FM L2 사용 가이드](guide_line/Lunit_FM_L2_Guide.md)
-3. [Lunit Model API 가이드](guide_line/Lunit_Model_API_Guide.md)
-4. [Lunit MCP Tools 가이드](guide_line/Lunit_MCP_Tools_Guide.md)
-5. [대회 규칙](docs/wiki/00_규칙.md)
-6. [L2 하네스 설계 재검증](docs/wiki/15_L2_하네스_설계_공식스펙_재검증.md)
-7. [의약품 허가·안전성 실무](docs/wiki/17_의약품_허가_안전성_DailyMed_FAERS_실무.md)
-8. [RAG 데이터소스·하이브리드 검색 실무](docs/wiki/19_RAG_데이터소스_하이브리드검색_실무.md)
+1. [Lunit Hackathon 제출 가이드](../guides/Lunit_Submission_Guide.md)
+2. [Lunit FM L2 사용 가이드](../guides/Lunit_FM_L2_Guide.md)
+3. [Lunit Model API 가이드](../guides/Lunit_Model_API_Guide.md)
+4. [Lunit MCP Tools 가이드](../guides/Lunit_MCP_Tools_Guide.md)
+5. [대회 규칙](../wiki/00_규칙.md)
+6. [L2 하네스 설계 재검증](../wiki/15_L2_하네스_설계_공식스펙_재검증.md)
+7. [의약품 허가·안전성 실무](../wiki/17_의약품_허가_안전성_DailyMed_FAERS_실무.md)
+8. [RAG 데이터소스·하이브리드 검색 실무](../wiki/19_RAG_데이터소스_하이브리드검색_실무.md)
 

@@ -48,3 +48,7 @@
 - 복잡한 기능은 baseline 대비 측정 가능한 개선이 확인된 경우에만 제출 경로에 넣는다.
 
 상세한 구현 판단과 단계별 체크리스트는 [Engineering Playbook](engineering_playbook.md)을 참고한다.
+
+## 실행 계획
+
+- [Hackathon 실행 계획](planning/HACKATHON_PLAN.md)
