@@ -153,6 +153,43 @@ class LunitModelClientTest(unittest.IsolatedAsyncioTestCase):
         uniform.assert_not_called()
         sleep.assert_awaited_once_with(2.5)
 
+    async def test_chat_returns_message_and_logs_reasoning_telemetry(
+        self,
+    ) -> None:
+        http_client = SequenceHTTPClient(
+            [
+                FakeResponse(
+                    200,
+                    body={
+                        "choices": [
+                            {
+                                "finish_reason": "stop",
+                                "message": {
+                                    "role": "assistant",
+                                    "content": "final answer",
+                                    "reasoning_content": "internal chain of thought",
+                                },
+                            }
+                        ]
+                    },
+                )
+            ]
+        )
+        client = LunitModelClient(FakeSettings(), http_client=http_client)
+
+        with self.assertLogs("src.model_client", level="INFO") as logs:
+            result = await client.chat(
+                [{"role": "user", "content": "question"}]
+            )
+
+        self.assertEqual(result["content"], "final answer")
+        self.assertEqual(result["reasoning_content"], "internal chain of thought")
+        output_logs = [line for line in logs.output if "l2_output" in line]
+        self.assertEqual(len(output_logs), 1)
+        self.assertIn("finish_reason=stop", output_logs[0])
+        self.assertIn("content_chars=12", output_logs[0])
+        self.assertIn("reasoning_chars=25", output_logs[0])
+
     async def test_max_tokens_uses_retrieval_budget_for_retrieval_phase(
         self,
     ) -> None:

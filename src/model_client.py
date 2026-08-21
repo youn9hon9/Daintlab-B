@@ -307,7 +307,20 @@ class LunitModelClient:
                 raise UpstreamProtocolError(
                     "Lunit FM returned invalid JSON"
                 ) from exc
-            return self._extract_message(data)
+            message, finish_reason = self._extract_message(data)
+            reasoning_content = message.get("reasoning_content")
+            content = message.get("content")
+            logger.info(
+                "l2_output phase=%s finish_reason=%s content_chars=%s "
+                "reasoning_chars=%s",
+                phase,
+                finish_reason,
+                len(content) if isinstance(content, str) else 0,
+                len(reasoning_content)
+                if isinstance(reasoning_content, str)
+                else 0,
+            )
+            return message
 
         raise UpstreamError("Lunit FM request failed after retries") from last_error
 
@@ -411,7 +424,7 @@ class LunitModelClient:
         return max(0.0, seconds)
 
     @staticmethod
-    def _extract_message(data: Any) -> dict[str, Any]:
+    def _extract_message(data: Any) -> tuple[dict[str, Any], Any]:
         if not isinstance(data, dict):
             raise UpstreamProtocolError("Lunit FM response must be an object")
         choices = data.get("choices")
@@ -420,7 +433,7 @@ class LunitModelClient:
         first = choices[0]
         if not isinstance(first, dict) or not isinstance(first.get("message"), dict):
             raise UpstreamProtocolError("Lunit FM response has no message")
-        return dict(first["message"])
+        return dict(first["message"]), first.get("finish_reason")
 
     async def aclose(self) -> None:
         if self._owns_client:
