@@ -11,8 +11,11 @@ RETRIEVE_TOOL = {
     "function": {
         "name": "retrieve_relevant_content",
         "description": (
-            "Retrieve external evidence for the latest user question. "
-            "The query must be a single, self-contained question."
+            "Retrieve external evidence only when an exact guideline, current "
+            "drug approval or safety fact, law, coverage rule, or explicit source "
+            "is required. Make at most one retrieval request per answer. The query "
+            "must be a single, self-contained question preserving all relevant "
+            "patient conditions and jurisdiction or date constraints."
         ),
         "parameters": {
             "type": "object",

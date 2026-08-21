@@ -46,8 +46,9 @@ def extract_cite_uids(value: Any) -> list[str]:
 
 
 class EvidenceRegistry:
-    def __init__(self, max_chars: int) -> None:
+    def __init__(self, max_chars: int, max_items: int | None = None) -> None:
         self.max_chars = max_chars
+        self.max_items = None if max_items is None else max(0, max_items)
         self._items: dict[str, dict[str, Any]] = {}
 
     def capture(self, source_tool: str, payload: Any) -> None:
@@ -99,11 +100,15 @@ class EvidenceRegistry:
         missing: list[str] = []
         seen: set[str] = set()
         remaining = self.max_chars
+        item_limit_reached = False
 
         for item in selection.items:
             if item.cite_uid in seen:
                 continue
             seen.add(item.cite_uid)
+            if self.max_items is not None and len(evidence) >= self.max_items:
+                item_limit_reached = True
+                break
             stored = self._items.get(item.cite_uid)
             if stored is None:
                 missing.append(item.cite_uid)
@@ -126,6 +131,13 @@ class EvidenceRegistry:
         notes = [selection.note] if selection.note else []
         if missing:
             notes.append(f"Ignored {len(missing)} unverified cite_uid value(s).")
+        selected_uid_count = len(
+            {item.cite_uid for item in selection.items}
+        )
+        if item_limit_reached:
+            notes.append(
+                f"Limited evidence to {self.max_items} selected item(s)."
+            )
 
         if not evidence:
             return RetrievalEnvelope(
@@ -134,7 +146,7 @@ class EvidenceRegistry:
             )
 
         status = selection.status
-        if missing or len(evidence) < len({item.cite_uid for item in selection.items}):
+        if missing or len(evidence) < selected_uid_count:
             status = "partial"
         return RetrievalEnvelope(
             status=status,

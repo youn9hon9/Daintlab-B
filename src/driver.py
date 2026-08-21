@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 from collections.abc import Callable
 from typing import Any
 
@@ -10,7 +12,7 @@ from src.mcp_gateway import MCPGateway
 from src.model_client import LunitModelClient
 from src.prompts import GENERATION_SYSTEM_PROMPT
 from src.retrieval import RetrievalRunner
-from src.schemas import InputMessage
+from src.schemas import InputMessage, RetrievalEnvelope
 from src.tooling import (
     RETRIEVE_TOOL,
     assistant_message_for_history,
@@ -20,6 +22,9 @@ from src.tooling import (
     tool_result_message,
     validated_tool_calls,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class Driver:
@@ -34,6 +39,8 @@ class Driver:
         self.gateway_factory = gateway_factory
 
     async def generate(self, history: list[InputMessage]) -> str:
+        loop = asyncio.get_running_loop()
+        started = loop.time()
         conversation = [message.model_dump() for message in history]
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": GENERATION_SYSTEM_PROMPT},
@@ -51,7 +58,7 @@ class Driver:
         ]
         retrieval_count = 0
 
-        for _ in range(self.settings.max_generation_rounds):
+        for generation_round in range(self.settings.max_generation_rounds):
             assistant = await self.model_client.chat(
                 messages,
                 tools=[RETRIEVE_TOOL],
@@ -60,6 +67,13 @@ class Driver:
             if not calls:
                 content = assistant.get("content")
                 if isinstance(content, str) and content.strip():
+                    logger.info(
+                        "generation_complete route=%s generation_rounds=%s "
+                        "retrievals=%s",
+                        "direct" if retrieval_count == 0 else "rag",
+                        generation_round + 1,
+                        retrieval_count,
+                    )
                     return content.strip()
                 raise UpstreamProtocolError(
                     "Lunit FM returned neither text nor tool calls"
@@ -110,7 +124,43 @@ class Driver:
                     self.model_client,
                     gateway_factory=self.gateway_factory,
                 )
-                envelope = await runner.run(query)
+                elapsed = loop.time() - started
+                available = (
+                    self.settings.request_timeout_seconds
+                    - elapsed
+                    - self.settings.final_generation_reserve_seconds
+                )
+                retrieval_budget = min(
+                    self.settings.retrieval_timeout_seconds,
+                    available,
+                )
+                if retrieval_budget <= 0:
+                    logger.warning(
+                        "retrieval_skipped reason=final_generation_reserve"
+                    )
+                    envelope = RetrievalEnvelope(
+                        status="no_evidence",
+                        note=(
+                            "Retrieval was skipped to preserve time for the final "
+                            "Generation response."
+                        ),
+                    )
+                else:
+                    try:
+                        async with asyncio.timeout(retrieval_budget):
+                            envelope = await runner.run(query)
+                    except TimeoutError:
+                        logger.warning(
+                            "retrieval_timed_out budget_seconds=%s",
+                            round(retrieval_budget, 3),
+                        )
+                        envelope = RetrievalEnvelope(
+                            status="no_evidence",
+                            note=(
+                                "Retrieval exceeded its time budget; answer using "
+                                "available knowledge and state important uncertainty."
+                            ),
+                        )
                 self._append_tool_result(
                     messages,
                     call,

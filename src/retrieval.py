@@ -9,7 +9,7 @@ from mcp import MCPError
 from pydantic import ValidationError
 
 from src.config import Settings
-from src.evidence import EvidenceRegistry
+from src.evidence import EvidenceRegistry, extract_cite_uids
 from src.mcp_gateway import MCPGateway
 from src.prompts import RETRIEVAL_SYSTEM_PROMPT
 from src.schemas import CitationSelection, RetrievalEnvelope
@@ -48,12 +48,24 @@ class RetrievalRunner:
                 note="Retrieval query was empty.",
             )
 
-        registry = EvidenceRegistry(self.settings.max_evidence_chars)
+        registry = EvidenceRegistry(
+            self.settings.max_evidence_chars,
+            max_items=getattr(self.settings, "max_selected_evidence", None),
+        )
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": RETRIEVAL_SYSTEM_PROMPT},
             {"role": "user", "content": query},
         ]
         mcp_call_count = 0
+        context_chars_used = 0
+        context_char_limit = getattr(
+            self.settings,
+            "max_retrieval_context_chars",
+            self.settings.max_mcp_result_chars
+            * self.settings.max_retrieval_mcp_calls,
+        )
+        seen_mcp_calls: set[tuple[str, str]] = set()
+        force_finalize_next = False
 
         try:
             async with self.gateway_factory(self.settings) as gateway:
@@ -68,7 +80,10 @@ class RetrievalRunner:
                     self.settings.max_retrieval_model_rounds
                 ):
                     force_finalize = (
-                        mcp_call_count >= self.settings.max_retrieval_mcp_calls
+                        force_finalize_next
+                        or mcp_call_count
+                        >= self.settings.max_retrieval_mcp_calls
+                        or context_chars_used >= context_char_limit
                         or round_index
                         == self.settings.max_retrieval_model_rounds - 1
                     )
@@ -150,6 +165,45 @@ class RetrievalRunner:
                             )
                             continue
 
+                        call_key = (
+                            name,
+                            json.dumps(
+                                arguments,
+                                ensure_ascii=False,
+                                sort_keys=True,
+                                separators=(",", ":"),
+                            ),
+                        )
+                        if call_key in seen_mcp_calls:
+                            self._append_tool_error(
+                                messages,
+                                call,
+                                name,
+                                (
+                                    "Duplicate MCP tool call was skipped. "
+                                    "Use the existing result and finalize retrieval."
+                                ),
+                            )
+                            mcp_call_count += 1
+                            force_finalize_next = True
+                            continue
+
+                        if context_chars_used >= context_char_limit:
+                            self._append_tool_error(
+                                messages,
+                                call,
+                                name,
+                                (
+                                    "Retrieval context budget is exhausted. "
+                                    "Finalize retrieval with the evidence already gathered."
+                                ),
+                            )
+                            mcp_call_count += 1
+                            force_finalize_next = True
+                            continue
+
+                        seen_mcp_calls.add(call_key)
+
                         try:
                             payload, content = await gateway.call_tool(
                                 name, arguments
@@ -172,6 +226,15 @@ class RetrievalRunner:
                         if payload.get("isError") is not True:
                             registry.capture(name, payload)
                         mcp_call_count += 1
+                        remaining_context_chars = max(
+                            0, context_char_limit - context_chars_used
+                        )
+                        content = self._bounded_context_content(
+                            content,
+                            payload,
+                            remaining_context_chars,
+                        )
+                        context_chars_used += len(content)
                         try:
                             messages.append(
                                 tool_result_message(call, name, content)
@@ -213,3 +276,63 @@ class RetrievalRunner:
             )
         except ValueError:
             logger.warning("invalid_tool_call_without_id tool=%s", name)
+
+    @staticmethod
+    def _bounded_context_content(
+        content: str,
+        payload: Any,
+        limit: int,
+    ) -> str:
+        if limit <= 0:
+            return ""
+        if len(content) <= limit:
+            return content
+
+        cite_uids = extract_cite_uids(payload)
+        compact = {
+            "truncated": True,
+            "original_chars": len(content),
+            "cite_uids": cite_uids,
+        }
+        encoded = json.dumps(
+            compact,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+        if len(encoded) > limit:
+            uid_only = json.dumps(
+                {"cite_uids": cite_uids},
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+            if len(uid_only) <= limit:
+                return uid_only
+
+            raw_uids = "\n".join(cite_uids)
+            if raw_uids and len(raw_uids) <= limit:
+                return raw_uids
+            return (raw_uids or content)[:limit]
+
+        low = 0
+        high = max(0, (limit - len(encoded)) // 2)
+        best = encoded
+        while low <= high:
+            excerpt_size = (low + high) // 2
+            candidate = {
+                **compact,
+                "content_prefix": content[:excerpt_size],
+                "content_suffix": content[-excerpt_size:]
+                if excerpt_size
+                else "",
+            }
+            candidate_encoded = json.dumps(
+                candidate,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+            if len(candidate_encoded) <= limit:
+                best = candidate_encoded
+                low = excerpt_size + 1
+            else:
+                high = excerpt_size - 1
+        return best
