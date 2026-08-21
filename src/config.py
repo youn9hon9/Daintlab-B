@@ -6,24 +6,28 @@ from dataclasses import dataclass
 from src.errors import ConfigurationError
 
 
-# F003 control budgets. These values define evaluated model behavior and must
+# F004 control budgets. These values define evaluated model behavior and must
 # change in source (with a new F version), never through deployment environment.
 #
-# The throughput/per-call cluster below (upstream timeout, request timeout,
-# final-generation reserve, MCP tool timeout, concurrency) is realigned to
-# D5 (b76170e15242a0c046ae7d892998de10f9d404fc), the only runtime profile with
-# a validated real-Trial pass (42.48). Y2's longer-budget, concurrency=2
-# profile is the one that produced coeval_failed_timeout in the real Trial
-# (see docs/evaluations/incidents/Y2_COEVAL_TIMEOUT.md on origin/dev), and
-# F001/F002 inherited that same concurrency=2 shape.
-UPSTREAM_TIMEOUT_SECONDS = 30.0
-REQUEST_TIMEOUT_SECONDS = 90.0
+# F003 changed upstream/request/final-reserve/mcp-tool timeouts AND
+# concurrency together (all "D5's throughput cluster" at once) and got 11/32
+# success (down from F002's 29/32) with 20x HTTP 502 + 1x 504. That result
+# cannot tell us whether the 30s upstream timeout or the concurrency=6 change
+# caused the collapse -- exactly the multi-variable confound this repo's own
+# incidents (B001, F001) warn against, and D5's own local eval already showed
+# the same 30s-upstream-timeout failure signature (11/16, 502s from
+# ReadTimeout) even though its real Trial passed. F004 isolates concurrency
+# as the only tested variable: timeouts revert to F002's values, and only
+# UPSTREAM_CONCURRENCY changes, from F002's 2 toward D5's 6 in one smaller
+# step (4), per both F002's and F003's own postmortem recommendations.
+UPSTREAM_TIMEOUT_SECONDS = 50.0
+REQUEST_TIMEOUT_SECONDS = 120.0
 RETRIEVAL_TIMEOUT_SECONDS = 40.0
-FINAL_GENERATION_RESERVE_SECONDS = 35.0
-MCP_TOOL_TIMEOUT_SECONDS = 20.0
+FINAL_GENERATION_RESERVE_SECONDS = 50.0
+MCP_TOOL_TIMEOUT_SECONDS = 18.0
 MCP_TERMINATE_ON_CLOSE = False
 UPSTREAM_RETRIES = 1
-UPSTREAM_CONCURRENCY = 6
+UPSTREAM_CONCURRENCY = 4
 UPSTREAM_PRIORITY_SLOTS = 1
 RETRY_BASE_SECONDS = 0.5
 RETRY_MAX_SECONDS = 8.0
