@@ -39,6 +39,21 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(model.calls), 1)
         self.assertIsNone(model.calls[0]["tools"])
 
+    async def test_retrieval_tool_is_not_offered_even_for_guideline_question(
+        self,
+    ) -> None:
+        model = SequenceModel(
+            [{"role": "assistant", "content": "직접 생성한 답변"}]
+        )
+        driver = Driver(make_settings(), model_client=model)
+
+        answer = await driver.generate(
+            [InputMessage(role="user", content="가이드라인상 이 질환의 목표는?")]
+        )
+
+        self.assertEqual(answer, "직접 생성한 답변")
+        self.assertIsNone(model.calls[0]["tools"])
+
     async def test_generation_retrieval_generation_flow(self) -> None:
         model = SequenceModel(
             [

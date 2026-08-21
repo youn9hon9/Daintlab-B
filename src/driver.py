@@ -64,7 +64,19 @@ class Driver:
         )
         assessment = assess_risk(history)
         guidance = assess_response_guidance(history, assessment)
-        retrieval_allowed = should_offer_retrieval(history)
+        # F007 ablation: F006 and B006 independently found that RAG attempts
+        # almost always exhaust the retrieval budget and fall back to
+        # no_evidence with no usable citation (F006: 2-3/32 RAG entries, all
+        # timed out; B006: 15-19/32, virtually all timed out). Before
+        # investing in a narrower/faster retrieval strategy, this version
+        # measures whether the retrieval path is net-positive at all by
+        # disabling it outright. should_offer_retrieval's keyword gate stays
+        # untouched and is still evaluated (but not acted on) so telemetry
+        # shows how often the old gate would have fired, to inform F008.
+        would_offer_retrieval = should_offer_retrieval(history)
+        if would_offer_retrieval:
+            logger.info("retrieval_gate_suppressed reason=f007_ablation")
+        retrieval_allowed = False
         conversation = [message.model_dump() for message in history]
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": GENERATION_SYSTEM_PROMPT},
