@@ -43,6 +43,19 @@ class Driver:
     async def generate(self, history: list[InputMessage]) -> str:
         loop = asyncio.get_running_loop()
         started = loop.time()
+        deadline_safety = min(
+            1.0,
+            max(0.01, self.settings.request_timeout_seconds * 0.01),
+        )
+        request_deadline = (
+            started
+            + self.settings.request_timeout_seconds
+            - deadline_safety
+        )
+        initial_retry_deadline = (
+            request_deadline
+            - self.settings.final_generation_reserve_seconds
+        )
         assessment = assess_risk(history)
         conversation = [message.model_dump() for message in history]
         messages: list[dict[str, Any]] = [
@@ -65,11 +78,40 @@ class Driver:
         last_envelope: RetrievalEnvelope | None = None
 
         for generation_round in range(self.settings.max_generation_rounds):
-            assistant = await self.model_client.chat(
-                messages,
-                tools=[RETRIEVE_TOOL],
-            )
+            final_phase = retrieval_count > 0
+            if final_phase:
+                final_budget = request_deadline - loop.time()
+                if final_budget <= 0:
+                    logger.warning(
+                        "generation_timed_out phase=final reason=no_budget"
+                    )
+                    raise TimeoutError
+                try:
+                    async with asyncio.timeout(final_budget):
+                        assistant = await self.model_client.chat(
+                            messages,
+                            phase="final",
+                            max_retries=1,
+                            retry_deadline=request_deadline,
+                        )
+                except TimeoutError:
+                    logger.warning(
+                        "generation_timed_out phase=final budget_seconds=%s",
+                        round(final_budget, 3),
+                    )
+                    raise
+            else:
+                assistant = await self.model_client.chat(
+                    messages,
+                    tools=[RETRIEVE_TOOL],
+                    phase="initial",
+                    retry_deadline=initial_retry_deadline,
+                )
             calls = validated_tool_calls(assistant)
+            if final_phase and calls:
+                raise UpstreamProtocolError(
+                    "Lunit FM attempted a tool call during final generation"
+                )
             if not calls:
                 content = assistant.get("content")
                 if isinstance(content, str) and content.strip():
@@ -131,11 +173,13 @@ class Driver:
                     self.model_client,
                     gateway_factory=self.gateway_factory,
                 )
+                retrieval_started = loop.time()
                 elapsed = loop.time() - started
                 available = (
                     self.settings.request_timeout_seconds
                     - elapsed
                     - self.settings.final_generation_reserve_seconds
+                    - deadline_safety
                 )
                 retrieval_budget = min(
                     self.settings.retrieval_timeout_seconds,
@@ -155,7 +199,10 @@ class Driver:
                 else:
                     try:
                         async with asyncio.timeout(retrieval_budget):
-                            envelope = await runner.run(query)
+                            envelope = await runner.run(
+                                query,
+                                deadline=loop.time() + retrieval_budget,
+                            )
                     except TimeoutError:
                         logger.warning(
                             "retrieval_timed_out budget_seconds=%s",
@@ -168,6 +215,12 @@ class Driver:
                                 "available knowledge and state important uncertainty."
                             ),
                         )
+                logger.info(
+                    "retrieval_complete status=%s latency_ms=%s budget_seconds=%s",
+                    envelope.status,
+                    round((loop.time() - retrieval_started) * 1000),
+                    round(max(0.0, retrieval_budget), 3),
+                )
                 last_envelope = envelope
                 self._append_tool_result(
                     messages,
@@ -180,13 +233,15 @@ class Driver:
                 "Lunit FM did not produce a final answer within the round budget"
             )
 
+        if final_content is None:
+            raise UpstreamProtocolError("Lunit FM returned no final answer")
+
         if last_envelope is not None:
             result = validate_answer(
                 final_content, last_envelope.evidence, last_envelope.status
             )
             if result.has_gap:
-                elapsed = loop.time() - started
-                remaining = self.settings.request_timeout_seconds - elapsed
+                remaining = request_deadline - loop.time()
                 if remaining >= self.settings.citation_repair_min_seconds:
                     messages.append(
                         assistant_message_for_history(
@@ -209,6 +264,9 @@ class Driver:
                                 messages,
                                 tools=[RETRIEVE_TOOL],
                                 tool_choice="none",
+                                phase="final",
+                                max_retries=0,
+                                retry_deadline=request_deadline,
                             )
                         repaired_content = repaired.get("content")
                         if isinstance(repaired_content, str) and repaired_content.strip():

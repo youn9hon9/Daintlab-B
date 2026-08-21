@@ -32,6 +32,20 @@ def _float_env(name: str, default: float, minimum: float = 0.1) -> float:
     return value
 
 
+def _bool_env(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    normalized = raw.strip().lower()
+    if normalized in {"true", "1", "yes"}:
+        return True
+    if normalized in {"false", "0", "no"}:
+        return False
+    raise ConfigurationError(
+        f"{name} must be one of true, false, 1, 0, yes, or no"
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     driver_model_id: str
@@ -44,8 +58,10 @@ class Settings:
     retrieval_timeout_seconds: float
     final_generation_reserve_seconds: float
     mcp_tool_timeout_seconds: float
+    mcp_terminate_on_close: bool
     upstream_retries: int
     upstream_concurrency: int
+    upstream_priority_slots: int
     retry_base_seconds: float
     retry_max_seconds: float
     max_generation_rounds: int
@@ -75,22 +91,28 @@ class Settings:
                 "LUNIT_MCP_URL", "https://mcp.hackathon.lunit.io/mcp"
             ).strip(),
             upstream_timeout_seconds=_float_env(
-                "UPSTREAM_TIMEOUT_SECONDS", 60.0
+                "UPSTREAM_TIMEOUT_SECONDS", 30.0
             ),
             request_timeout_seconds=_float_env(
-                "REQUEST_TIMEOUT_SECONDS", 180.0
+                "REQUEST_TIMEOUT_SECONDS", 90.0
             ),
             retrieval_timeout_seconds=_float_env(
-                "RETRIEVAL_TIMEOUT_SECONDS", 115.0
+                "RETRIEVAL_TIMEOUT_SECONDS", 40.0
             ),
             final_generation_reserve_seconds=_float_env(
-                "FINAL_GENERATION_RESERVE_SECONDS", 50.0
+                "FINAL_GENERATION_RESERVE_SECONDS", 35.0
             ),
             mcp_tool_timeout_seconds=_float_env(
-                "MCP_TOOL_TIMEOUT_SECONDS", 60.0
+                "MCP_TOOL_TIMEOUT_SECONDS", 20.0
             ),
-            upstream_retries=_int_env("UPSTREAM_RETRIES", 2, minimum=0),
-            upstream_concurrency=_int_env("UPSTREAM_CONCURRENCY", 2),
+            mcp_terminate_on_close=_bool_env(
+                "MCP_TERMINATE_ON_CLOSE", False
+            ),
+            upstream_retries=_int_env("UPSTREAM_RETRIES", 1, minimum=0),
+            upstream_concurrency=_int_env("UPSTREAM_CONCURRENCY", 6),
+            upstream_priority_slots=_int_env(
+                "UPSTREAM_PRIORITY_SLOTS", 1, minimum=0
+            ),
             retry_base_seconds=_float_env("RETRY_BASE_SECONDS", 0.5),
             retry_max_seconds=_float_env("RETRY_MAX_SECONDS", 8.0),
             max_generation_rounds=_int_env("MAX_GENERATION_ROUNDS", 3),
@@ -98,19 +120,19 @@ class Settings:
                 "MAX_RETRIEVALS_PER_ANSWER", 1
             ),
             max_retrieval_model_rounds=_int_env(
-                "MAX_RETRIEVAL_MODEL_ROUNDS", 6
+                "MAX_RETRIEVAL_MODEL_ROUNDS", 5
             ),
             max_retrieval_mcp_calls=_int_env(
-                "MAX_RETRIEVAL_MCP_CALLS", 4
+                "MAX_RETRIEVAL_MCP_CALLS", 3
             ),
             max_mcp_result_chars=_int_env(
-                "MAX_MCP_RESULT_CHARS", 10_000, minimum=1_024
+                "MAX_MCP_RESULT_CHARS", 8_000, minimum=1_024
             ),
             max_retrieval_context_chars=_int_env(
-                "MAX_RETRIEVAL_CONTEXT_CHARS", 32_000, minimum=1_024
+                "MAX_RETRIEVAL_CONTEXT_CHARS", 20_000, minimum=1_024
             ),
-            max_evidence_chars=_int_env("MAX_EVIDENCE_CHARS", 24_000),
-            max_selected_evidence=_int_env("MAX_SELECTED_EVIDENCE", 3),
+            max_evidence_chars=_int_env("MAX_EVIDENCE_CHARS", 16_000),
+            max_selected_evidence=_int_env("MAX_SELECTED_EVIDENCE", 2),
             citation_repair_min_seconds=_float_env(
                 "CITATION_REPAIR_MIN_SECONDS", 15.0, minimum=0.0
             ),

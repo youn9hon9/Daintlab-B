@@ -36,9 +36,13 @@ Evaluator messages
 - 실제 tool result에 존재하는 `cite_uid`만 최종 evidence로 전달한다.
 - 요청에 포함된 전체 대화가 source of truth이며 server-side session에 의존하지 않는다.
 - 일반 의료 질문은 L2 1회로 직접 답하고, 정확한 근거가 필요할 때만 Retrieval을 1회 수행한다.
-- L2 HTTP attempt는 동시에 최대 2개만 실행하고 `Retry-After`를 반영한다.
-- Retrieval은 최대 L2 6 round·MCP 4 call·선택 evidence 3개로 제한한다.
-- 전체 180초 중 Retrieval은 최대 115초만 사용해 최종 Generation 시간을 남긴다.
+- 일반 L2 HTTP attempt는 동시에 최대 6개만 실행하고, RAG 최종 답변용
+  priority slot 1개를 별도로 예약하며 `Retry-After`를 반영한다.
+- Retrieval은 최대 L2 5 round·MCP 3 call·선택 evidence 2개로 제한한다.
+- 전체 90초 중 Retrieval은 최대 40초만 사용하고 최종 Generation에 35초를
+  예약한다.
+- 전체 사용자 대화에서 응급 위험 신호를 유지하고, 근거 답변의 잘못된
+  citation은 남은 시간이 충분할 때 L2가 한 번 교정한다.
 
 ## 환경변수
 

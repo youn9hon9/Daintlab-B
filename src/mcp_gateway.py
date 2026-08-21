@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-<<<<<<< HEAD
 import asyncio
 import copy
 import json
 import logging
-=======
-import json
->>>>>>> origin/lunit/hackathon-submission
 from contextlib import AsyncExitStack
 from types import TracebackType
 from typing import Any
@@ -21,8 +17,10 @@ from src.evidence import extract_cite_uids
 from src.errors import UpstreamProtocolError
 
 
+logger = logging.getLogger(__name__)
+
+
 class MCPGateway:
-<<<<<<< HEAD
     # The live tool schema is fixed for the lifetime of an evaluation process.
     # Cache it until process restart and serialize cold misses so a concurrent
     # evaluator wave performs only one tools/list pagination sequence.
@@ -31,8 +29,6 @@ class MCPGateway:
         asyncio.AbstractEventLoop, dict[str, asyncio.Lock]
     ] = {}
 
-=======
->>>>>>> origin/lunit/hackathon-submission
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self._stack: AsyncExitStack | None = None
@@ -47,8 +43,7 @@ class MCPGateway:
                 httpx2.AsyncClient(
                     headers={"Authorization": f"Bearer {api_key}"},
                     timeout=httpx2.Timeout(
-                        30.0,
-                        read=self.settings.mcp_tool_timeout_seconds + 10.0,
+                        self.settings.mcp_tool_timeout_seconds
                     ),
                     follow_redirects=True,
                 )
@@ -56,7 +51,7 @@ class MCPGateway:
             transport = streamable_http_client(
                 self.settings.lunit_mcp_url,
                 http_client=http_client,
-                terminate_on_close=True,
+                terminate_on_close=self.settings.mcp_terminate_on_close,
             )
             self._client = await stack.enter_async_context(
                 Client(
@@ -86,7 +81,6 @@ class MCPGateway:
         return self._client
 
     async def list_openai_tools(self) -> list[dict[str, Any]]:
-<<<<<<< HEAD
         cache_key = self.settings.lunit_mcp_url
         converted = self._cached_tools(cache_key)
         if converted is not None:
@@ -111,8 +105,6 @@ class MCPGateway:
             return converted
 
     async def _fetch_openai_tools(self) -> list[dict[str, Any]]:
-=======
->>>>>>> origin/lunit/hackathon-submission
         client = self._require_client()
         tools: list[Any] = []
         cursor: str | None = None
@@ -140,7 +132,6 @@ class MCPGateway:
                     },
                 }
             )
-<<<<<<< HEAD
         return converted
 
     def _cached_tools(
@@ -162,10 +153,6 @@ class MCPGateway:
         cls._tool_cache.clear()
         cls._tool_cache_locks.clear()
 
-=======
-        return converted
-
->>>>>>> origin/lunit/hackathon-submission
     async def call_tool(
         self, name: str, arguments: dict[str, Any]
     ) -> tuple[dict[str, Any], str]:

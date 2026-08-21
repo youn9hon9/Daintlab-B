@@ -20,7 +20,7 @@ class SlowRetrievalRunner:
     def __init__(self, *args, **kwargs) -> None:
         pass
 
-    async def run(self, query: str):
+    async def run(self, query: str, *, deadline: float | None = None):
         await asyncio.sleep(0.1)
 
 

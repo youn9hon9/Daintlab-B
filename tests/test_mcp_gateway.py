@@ -1,10 +1,116 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import unittest
+from typing import Any
+from unittest.mock import patch
 
 from src.mcp_gateway import MCPGateway
 from tests.helpers import make_settings
+
+
+class FakeHTTPClient:
+    instances: list["FakeHTTPClient"] = []
+
+    def __init__(self, **kwargs: Any) -> None:
+        self.kwargs = kwargs
+        self.enter_task: asyncio.Task[Any] | None = None
+        self.exit_task: asyncio.Task[Any] | None = None
+        self.exited = False
+        self.__class__.instances.append(self)
+
+    async def __aenter__(self) -> "FakeHTTPClient":
+        self.enter_task = asyncio.current_task()
+        return self
+
+    async def __aexit__(self, exc_type, exc, traceback) -> None:
+        self.exit_task = asyncio.current_task()
+        self.exited = True
+
+
+class FakeTransport:
+    def __init__(self, terminate_on_close: bool) -> None:
+        self.terminate_on_close = terminate_on_close
+        self.enter_task: asyncio.Task[Any] | None = None
+        self.exit_task: asyncio.Task[Any] | None = None
+        self.exited = False
+
+    async def __aenter__(self) -> object:
+        self.enter_task = asyncio.current_task()
+        return object()
+
+    async def __aexit__(self, exc_type, exc, traceback) -> None:
+        self.exit_task = asyncio.current_task()
+        self.exited = True
+
+
+class FakeClient:
+    instances: list["FakeClient"] = []
+
+    def __init__(
+        self,
+        transport: FakeTransport,
+        *,
+        mode: str,
+        read_timeout_seconds: float,
+    ) -> None:
+        self.transport = transport
+        self.mode = mode
+        self.read_timeout_seconds = read_timeout_seconds
+        self.enter_task: asyncio.Task[Any] | None = None
+        self.exit_task: asyncio.Task[Any] | None = None
+        self.list_cursors: list[str | None] = []
+        self.tool_calls: list[dict[str, Any]] = []
+        self.__class__.instances.append(self)
+
+    async def __aenter__(self) -> "FakeClient":
+        self.enter_task = asyncio.current_task()
+        await self.transport.__aenter__()
+        return self
+
+    async def __aexit__(self, exc_type, exc, traceback) -> None:
+        self.exit_task = asyncio.current_task()
+        await self.transport.__aexit__(exc_type, exc, traceback)
+
+    async def list_tools(self, *, cursor: str | None = None):
+        self.list_cursors.append(cursor)
+        tool = type(
+            "FakeTool",
+            (),
+            {
+                "name": "fake_search",
+                "description": "Search fake evidence.",
+                "title": None,
+                "input_schema": {"type": "object", "properties": {}},
+            },
+        )()
+        return type(
+            "FakeToolPage",
+            (),
+            {"tools": [tool], "next_cursor": None},
+        )()
+
+    async def call_tool(
+        self,
+        name: str,
+        arguments: dict[str, Any],
+        *,
+        read_timeout_seconds: float,
+    ):
+        self.tool_calls.append(
+            {
+                "name": name,
+                "arguments": arguments,
+                "read_timeout_seconds": read_timeout_seconds,
+            }
+        )
+
+        class FakeResult:
+            def model_dump(self, **kwargs: Any) -> dict[str, Any]:
+                return {"isError": False, "content": []}
+
+        return FakeResult()
 
 
 class MCPGatewayTest(unittest.TestCase):
@@ -28,7 +134,6 @@ class MCPGatewayTest(unittest.TestCase):
         self.assertIn("cite-large-1", compact["cite_uids"])
 
 
-<<<<<<< HEAD
 class MCPGatewayLifecycleTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         FakeHTTPClient.instances.clear()
@@ -204,7 +309,5 @@ class MCPGatewayLifecycleTest(unittest.IsolatedAsyncioTestCase):
         self.assertIs(http_client.enter_task, http_client.exit_task)
 
 
-=======
->>>>>>> origin/lunit/hackathon-submission
 if __name__ == "__main__":
     unittest.main()
