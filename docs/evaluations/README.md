@@ -47,7 +47,8 @@ timeout 때문이며, 실제 Trial은 42.48점으로 성공했다 — 위 기준
 | [F003](candidates/F003.md) | 32 | 19.50 | 34.38% | 34.62초 | **폐기.** timeout 원복+동시성 6을 한 번에 바꿔 502 20건·504 1건, 원인 미분리 |
 | [F004](candidates/F004.md) | 32 (×2 실행) | 58.03 / 43.84 | 96.88% / 75.00% | 31.30초 / 상승 | **품질 양호, 안정성 미달.** 동일 코드 재실행에서 성공 31→24건, 점수 -14.19점. 양쪽 다 성공한 23문항만 비교하면 차이 0.44점 — 답변 품질은 동일, 실패·지연의 실행별 변동이 원인. telemetry 미수집으로 원인(upstream vs MCP vs 동시성) 미확정 |
 | [F005](candidates/F005.md) | 32 | **58.57** | **100%** | 30.41초 | **승격됨 — 현재 frontier 로컬 기준선.** stderr 트립와이어 제거로 telemetry 첫 부분 수집(queue wait 0ms, RAG 2건 모두 retrieval 40초 timeout) |
-| [F006](candidates/F006.md) | 실제 Trial | **45.88** | - | - | **실제 Dashboard Trial 최고 기록**(D5 42.48 대비 +3.40). runtime 무변경(F005와 동일), citation 근거정합성 관측과 `mcp_tool_cancelled` telemetry만 추가. 로컬 coverage-v2 단독 평가는 아직 미확보 |
+| [F006](candidates/F006.md) | 실제 Trial | **45.88** | - | - | **실제 Dashboard Trial 최고 기록**(D5 42.48 대비 +3.40). runtime 무변경(F005와 동일), citation 근거정합성 관측과 `mcp_tool_cancelled` telemetry만 추가. 로컬 반복 2회 모두 RAG 진입 2~3건이 전부 40초 timeout→no_evidence, grounding 이벤트 0건 |
+| [F007](candidates/F007.md) | 평가 대기 | - | - | - | Retrieval 경로를 완전히 끄는 단일 변수 ablation. F006(RAG 2~3/32 전부 timeout)과 B006(RAG 15~19/32 전부 timeout)이 독립적으로 같은 결론(retrieval이 사실상 항상 실패)에 도달해 같은 다음 실험을 권고했다 |
 
 B002·F002·F003·F004는 32/32를 완주하지 못해 승격되지 않았다. **F005가
 32/32·58.57점으로 처음 승격됐다** — F004의 timeout/동시성 정렬을 그대로
@@ -55,10 +56,14 @@ B002·F002·F003·F004는 32/32를 완주하지 못해 승격되지 않았다. *
 바로는 로컬 동시성 4에서 queue 적체는 병목이 아니었고, 주 지연은 upstream
 initial 응답 자체와 RAG 2건의 retrieval timeout이었다. dev는 F006에 "runtime
 숫자와 품질 변경을 같은 버전에 섞지 않는다"를 포함한 8개 안전 조건을 못박았고,
-F005의 현재 값이 이미 전부를 만족해 F006은 runtime을 바꾸지 않는다. 대신
-F001 이후 미뤄뒀던 wiki 06(근거정합성) 축을 관측 전용으로 처음 시도한다.
-다음 표준 로컬 기준선은 F005이며, dev의 안전조건 7번(동일 SHA 2회 연속
-32/32)은 F005·F006이 함께 충족해야 한다.
+F005의 현재 값이 이미 전부를 만족해 F006은 runtime을 바꾸지 않는다. F006은
+실제 Trial 45.88점으로 공식 기준선이 됐지만, 로컬 telemetry는 grounding
+관측이 한 번도 발동하지 못했음을 보여줬다 — retrieval이 항상 timeout으로
+끝났기 때문이다. B006(벤치마크 트랙)도 독립적으로 같은 원인(RAG 진입 후
+timeout, queue 문제 아님)으로 폐기되며 같은 다음 실험을 권고해, F007은
+retrieval을 완전히 꺼서 순 기여도를 직접 측정한다. 다음 표준 로컬
+기준선은 F005/F006이며, dev의 안전조건 7번(동일 SHA 2회 연속 32/32)은
+아직 어느 F 버전도 단독으로 채우지 못했다.
 
 초기 8개 탐색 실험은 [U1](candidates/U1.md), [D2](candidates/D2.md),
 [U2](candidates/U2.md)를 참고한다. 표본이 달라 위 표의 대표 평가와 직접 순위를
