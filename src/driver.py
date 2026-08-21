@@ -45,6 +45,15 @@ class Driver:
             1.0,
             max(0.01, self.settings.request_timeout_seconds * 0.01),
         )
+        request_deadline = (
+            started
+            + self.settings.request_timeout_seconds
+            - deadline_safety
+        )
+        initial_retry_deadline = (
+            request_deadline
+            - self.settings.final_generation_reserve_seconds
+        )
         conversation = [message.model_dump() for message in history]
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": GENERATION_SYSTEM_PROMPT},
@@ -79,9 +88,9 @@ class Driver:
                     async with asyncio.timeout(final_budget):
                         assistant = await self.model_client.chat(
                             messages,
-                            tools=[RETRIEVE_TOOL],
-                            priority=True,
+                            phase="final",
                             max_retries=1,
+                            retry_deadline=request_deadline,
                         )
                 except TimeoutError:
                     logger.warning(
@@ -93,9 +102,14 @@ class Driver:
                 assistant = await self.model_client.chat(
                     messages,
                     tools=[RETRIEVE_TOOL],
-                    priority=False,
+                    phase="initial",
+                    retry_deadline=initial_retry_deadline,
                 )
             calls = validated_tool_calls(assistant)
+            if final_phase and calls:
+                raise UpstreamProtocolError(
+                    "Lunit FM attempted a tool call during final generation"
+                )
             if not calls:
                 content = assistant.get("content")
                 if isinstance(content, str) and content.strip():
@@ -182,7 +196,10 @@ class Driver:
                 else:
                     try:
                         async with asyncio.timeout(retrieval_budget):
-                            envelope = await runner.run(query)
+                            envelope = await runner.run(
+                                query,
+                                deadline=loop.time() + retrieval_budget,
+                            )
                     except TimeoutError:
                         logger.warning(
                             "retrieval_timed_out budget_seconds=%s",

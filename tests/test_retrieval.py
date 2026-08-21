@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import unittest
 
@@ -96,6 +97,25 @@ class SessionTerminatedGateway(RecordingGateway):
         if self.__class__.tool_attempts == 1:
             raise MCPError(-32000, "Session terminated")
         return await super().call_tool(name, arguments)
+
+
+class ParallelGateway(RecordingGateway):
+    def __init__(self, settings) -> None:
+        super().__init__(settings)
+        self.active = 0
+        self.max_active = 0
+        self.both_started = asyncio.Event()
+
+    async def call_tool(self, name, arguments):
+        self.active += 1
+        self.max_active = max(self.max_active, self.active)
+        if self.active >= 2:
+            self.both_started.set()
+        try:
+            await asyncio.wait_for(self.both_started.wait(), timeout=0.2)
+            return await super().call_tool(name, arguments)
+        finally:
+            self.active -= 1
 
 
 class RetrievalTest(unittest.IsolatedAsyncioTestCase):
@@ -312,6 +332,43 @@ class RetrievalTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.status, "sufficient")
         self.assertEqual(SessionTerminatedGateway.tool_attempts, 2)
         self.assertEqual(len(SessionTerminatedGateway.instances), 2)
+
+    async def test_tool_calls_from_one_model_round_run_concurrently(self) -> None:
+        model = SequenceModel(
+            [
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call("call-1", "fake_search", {"query": "one"}),
+                        tool_call("call-2", "fake_search", {"query": "two"}),
+                    ],
+                },
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call(
+                            "call-3",
+                            "finalize_retrieval",
+                            {"status": "no_evidence", "items": []},
+                        )
+                    ],
+                },
+            ]
+        )
+        runner = RetrievalRunner(
+            make_settings(),
+            model,
+            gateway_factory=ParallelGateway,
+        )
+
+        result = await runner.run("parallel query")
+
+        gateway = ParallelGateway.instances[-1]
+        self.assertEqual(result.status, "no_evidence")
+        self.assertEqual(gateway.max_active, 2)
+        self.assertEqual(len(gateway.calls), 2)
 
 
 if __name__ == "__main__":

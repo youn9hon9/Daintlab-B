@@ -138,6 +138,7 @@ class MCPGatewayLifecycleTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         FakeHTTPClient.instances.clear()
         FakeClient.instances.clear()
+        MCPGateway.clear_tool_cache()
         self.transport_calls: list[dict[str, Any]] = []
 
     def fake_streamable_http_client(
@@ -205,6 +206,27 @@ class MCPGatewayLifecycleTest(unittest.IsolatedAsyncioTestCase):
         )
         self.assertTrue(http_client.exited)
         self.assertTrue(transport_call["transport"].exited)
+
+    async def test_second_gateway_reuses_cached_tool_list(self) -> None:
+        settings = make_settings()
+
+        with (
+            patch("src.mcp_gateway.httpx2.AsyncClient", FakeHTTPClient),
+            patch(
+                "src.mcp_gateway.streamable_http_client",
+                self.fake_streamable_http_client,
+            ),
+            patch("src.mcp_gateway.Client", FakeClient),
+        ):
+            async with MCPGateway(settings) as first:
+                await first.list_openai_tools()
+            async with MCPGateway(settings) as second:
+                tools = await second.list_openai_tools()
+                await second.call_tool("fake_search", {"query": "cached"})
+
+        self.assertEqual(FakeClient.instances[0].list_cursors, [None])
+        self.assertEqual(FakeClient.instances[1].list_cursors, [])
+        self.assertEqual(tools[0]["function"]["name"], "fake_search")
 
     async def test_cancellation_exits_quickly_in_the_owner_task(self) -> None:
         settings = make_settings(

@@ -20,7 +20,7 @@ class SlowRetrievalRunner:
     def __init__(self, *args, **kwargs) -> None:
         pass
 
-    async def run(self, query: str):
+    async def run(self, query: str, *, deadline: float | None = None):
         await asyncio.sleep(0.1)
 
 
@@ -41,7 +41,7 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
             model.calls[0]["tools"][0]["function"]["name"],
             "retrieve_relevant_content",
         )
-        self.assertFalse(model.calls[0]["priority"])
+        self.assertEqual(model.calls[0]["phase"], "initial")
 
     async def test_generation_retrieval_generation_flow(self) -> None:
         model = SequenceModel(
@@ -123,7 +123,8 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             envelope["evidence"][0]["cite_uid"], "cite-test-1"
         )
-        self.assertTrue(model.calls[-1]["priority"])
+        self.assertEqual(model.calls[-1]["phase"], "final")
+        self.assertIsNone(model.calls[-1]["tools"])
         self.assertEqual(model.calls[-1]["max_retries"], 1)
 
     async def test_malformed_tool_call_is_rejected_before_round_trip(self) -> None:
@@ -187,7 +188,8 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
         tool_message = model.calls[-1]["messages"][-1]
         self.assertEqual(tool_message["role"], "tool")
         self.assertEqual(json.loads(tool_message["content"])["status"], "no_evidence")
-        self.assertTrue(model.calls[-1]["priority"])
+        self.assertEqual(model.calls[-1]["phase"], "final")
+        self.assertIsNone(model.calls[-1]["tools"])
         self.assertEqual(model.calls[-1]["max_retries"], 1)
 
 

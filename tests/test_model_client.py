@@ -170,7 +170,7 @@ class LunitModelClientTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(results), 5)
         self.assertEqual(http_client.max_active, concurrency)
 
-    async def test_priority_waiter_starts_before_queued_normal_waiter(self) -> None:
+    async def test_final_waiter_starts_before_queued_initial_waiter(self) -> None:
         http_client = OrderedHTTPClient()
         client = LunitModelClient(
             FakeSettings(upstream_retries=0, upstream_concurrency=1),
@@ -186,45 +186,78 @@ class LunitModelClientTest(unittest.IsolatedAsyncioTestCase):
             client.chat([{"role": "user", "content": "normal"}])
         )
         await asyncio.sleep(0)
-        priority = asyncio.create_task(
+        final = asyncio.create_task(
             client.chat(
-                [{"role": "user", "content": "priority"}],
-                priority=True,
+                [{"role": "user", "content": "final"}],
+                phase="final",
             )
         )
         await asyncio.sleep(0)
         http_client.release_first.set()
 
         await asyncio.wait_for(
-            asyncio.gather(holder, normal, priority), timeout=1.0
+            asyncio.gather(holder, normal, final), timeout=1.0
         )
         self.assertEqual(
             http_client.order,
-            ["holder", "priority", "normal"],
+            ["holder", "final", "normal"],
+        )
+
+    async def test_retrieval_starts_before_queued_initial_waiter(self) -> None:
+        http_client = OrderedHTTPClient()
+        client = LunitModelClient(
+            FakeSettings(upstream_retries=0, upstream_concurrency=1),
+            http_client=http_client,
+        )
+        client._upstream_limiter = _PriorityLimiter(capacity=1)
+        holder = asyncio.create_task(
+            client.chat([{"role": "user", "content": "holder"}])
+        )
+        await asyncio.wait_for(http_client.first_started.wait(), timeout=1.0)
+
+        initial = asyncio.create_task(
+            client.chat([{"role": "user", "content": "initial"}])
+        )
+        await asyncio.sleep(0)
+        retrieval = asyncio.create_task(
+            client.chat(
+                [{"role": "user", "content": "retrieval"}],
+                phase="retrieval",
+            )
+        )
+        await asyncio.sleep(0)
+        http_client.release_first.set()
+
+        await asyncio.wait_for(
+            asyncio.gather(holder, initial, retrieval), timeout=1.0
+        )
+        self.assertEqual(
+            http_client.order,
+            ["holder", "retrieval", "initial"],
         )
 
     async def test_reserved_slot_starts_priority_while_normal_slots_are_full(
         self,
     ) -> None:
         limiter = _PriorityLimiter(capacity=2, reserved_priority_slots=1)
-        await limiter.acquire(priority=False)
-        await limiter.acquire(priority=False)
+        await limiter.acquire(phase="initial")
+        await limiter.acquire(phase="initial")
 
-        blocked_normal = asyncio.create_task(limiter.acquire(priority=False))
+        blocked_normal = asyncio.create_task(limiter.acquire(phase="initial"))
         await asyncio.sleep(0)
         self.assertFalse(blocked_normal.done())
 
-        await asyncio.wait_for(limiter.acquire(priority=True), timeout=0.1)
+        await asyncio.wait_for(limiter.acquire(phase="final"), timeout=0.1)
         self.assertEqual(limiter.active, 3)
         self.assertEqual(limiter.normal_active, 2)
 
-        limiter.release(priority=True)
+        limiter.release(phase="final")
         self.assertFalse(blocked_normal.done())
-        limiter.release(priority=False)
+        limiter.release(phase="initial")
         await asyncio.wait_for(blocked_normal, timeout=0.1)
 
-        limiter.release(priority=False)
-        limiter.release(priority=False)
+        limiter.release(phase="initial")
+        limiter.release(phase="initial")
         self.assertEqual(limiter.active, 0)
         self.assertEqual(limiter.normal_active, 0)
 
@@ -243,7 +276,7 @@ class LunitModelClientTest(unittest.IsolatedAsyncioTestCase):
         priority = asyncio.create_task(
             client.chat(
                 [{"role": "user", "content": "cancelled-priority"}],
-                priority=True,
+                phase="final",
             )
         )
         normal = asyncio.create_task(
@@ -266,8 +299,8 @@ class LunitModelClientTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_cancelled_granted_waiter_reclaims_reserved_slot(self) -> None:
         limiter = _PriorityLimiter(capacity=1)
-        await limiter.acquire(priority=False)
-        waiter = asyncio.create_task(limiter.acquire(priority=True))
+        await limiter.acquire(phase="initial")
+        waiter = asyncio.create_task(limiter.acquire(phase="final"))
         await asyncio.sleep(0)
 
         # Grant the queued waiter, then cancel before it can resume from await.
@@ -276,7 +309,7 @@ class LunitModelClientTest(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(asyncio.CancelledError):
             await waiter
 
-        await asyncio.wait_for(limiter.acquire(priority=False), timeout=1.0)
+        await asyncio.wait_for(limiter.acquire(phase="initial"), timeout=1.0)
         self.assertEqual(limiter.active, 1)
         limiter.release()
         self.assertEqual(limiter.active, 0)
@@ -297,6 +330,27 @@ class LunitModelClientTest(unittest.IsolatedAsyncioTestCase):
                 await client.chat(
                     [{"role": "user", "content": "question"}],
                     max_retries=0,
+                )
+
+        self.assertEqual(http_client.calls, 1)
+        sleep.assert_not_awaited()
+
+    async def test_retry_is_skipped_when_full_attempt_cannot_fit_deadline(
+        self,
+    ) -> None:
+        http_client = SequenceHTTPClient(
+            [FakeResponse(500), FakeResponse(200)]
+        )
+        client = LunitModelClient(FakeSettings(), http_client=http_client)
+        deadline = asyncio.get_running_loop().time() + 0.5
+
+        with patch(
+            "src.model_client.asyncio.sleep", new_callable=AsyncMock
+        ) as sleep:
+            with self.assertRaises(UpstreamError):
+                await client.chat(
+                    [{"role": "user", "content": "question"}],
+                    retry_deadline=deadline,
                 )
 
         self.assertEqual(http_client.calls, 1)

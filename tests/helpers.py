@@ -50,16 +50,18 @@ class SequenceModel:
         *,
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
-        priority: bool = False,
+        phase: str = "initial",
         max_retries: int | None = None,
+        retry_deadline: float | None = None,
     ) -> dict[str, Any]:
         self.calls.append(
             {
                 "messages": copy.deepcopy(messages),
                 "tools": copy.deepcopy(tools),
                 "tool_choice": copy.deepcopy(tool_choice),
-                "priority": priority,
+                "phase": phase,
                 "max_retries": max_retries,
+                "retry_deadline": retry_deadline,
             }
         )
         if not self.responses:

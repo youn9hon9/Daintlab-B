@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, Literal
 
 import httpx2
 
@@ -19,20 +19,23 @@ from src.errors import UpstreamError, UpstreamProtocolError
 
 _RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 logger = logging.getLogger(__name__)
+ModelPhase = Literal["initial", "retrieval", "final"]
 
 
 @dataclass(slots=True)
 class _Waiter:
     future: asyncio.Future[None]
-    priority: bool
+    phase: ModelPhase
     granted: bool = False
 
 
 class _PriorityLimiter:
-    """Cancellation-safe capacity limiter with priority-first wakeups.
+    """Cancellation-safe capacity limiter with phase-aware wakeups.
 
-    ``capacity`` limits normal calls. Reserved priority slots are additional,
-    so direct-answer throughput is preserved while final RAG calls can start.
+    ``capacity`` limits initial and retrieval calls. Reserved final slots are
+    additional, so direct-answer throughput is preserved while final RAG calls
+    can start. Within normal capacity, retrieval continuations are admitted
+    before newly queued initial calls to avoid breadth-first starvation.
     State transitions contain no awaits, so they are atomic within the single
     asyncio event loop used by the shared model client.
     """
@@ -51,23 +54,16 @@ class _PriorityLimiter:
         self.capacity = capacity + reserved_priority_slots
         self.active = 0
         self.normal_active = 0
-        self._priority_waiters: deque[_Waiter] = deque()
-        self._normal_waiters: deque[_Waiter] = deque()
+        self._final_waiters: deque[_Waiter] = deque()
+        self._retrieval_waiters: deque[_Waiter] = deque()
+        self._initial_waiters: deque[_Waiter] = deque()
 
-    async def acquire(self, *, priority: bool) -> None:
-        if (
-            self._can_grant(priority)
-            and not self._priority_waiters
-            and not self._normal_waiters
-        ):
-            self._mark_granted(priority)
-            return
-
+    async def acquire(self, *, phase: ModelPhase) -> None:
         waiter = _Waiter(
             asyncio.get_running_loop().create_future(),
-            priority=priority,
+            phase=phase,
         )
-        queue = self._priority_waiters if priority else self._normal_waiters
+        queue = self._queue_for(phase)
         queue.append(waiter)
         self._grant_waiters()
         try:
@@ -76,7 +72,7 @@ class _PriorityLimiter:
             if waiter.granted:
                 # Cancellation can race with set_result() before the task resumes.
                 # Reclaim the reserved slot and hand it to the next live waiter.
-                self._mark_released(priority)
+                self._mark_released(phase)
                 self._grant_waiters()
             else:
                 try:
@@ -86,10 +82,10 @@ class _PriorityLimiter:
                 waiter.future.cancel()
             raise
 
-    def release(self, *, priority: bool = False) -> None:
+    def release(self, *, phase: ModelPhase = "initial") -> None:
         if self.active <= 0:
             raise RuntimeError("L2 limiter released without an active slot")
-        self._mark_released(priority)
+        self._mark_released(phase)
         self._grant_waiters()
 
     def _grant_waiters(self) -> None:
@@ -98,18 +94,30 @@ class _PriorityLimiter:
             if waiter is None:
                 return
             waiter.granted = True
-            self._mark_granted(waiter.priority)
+            self._mark_granted(waiter.phase)
             waiter.future.set_result(None)
 
     def _next_grantable_waiter(self) -> _Waiter | None:
         if self.active >= self.capacity:
             return None
-        priority = self._pop_live(self._priority_waiters)
-        if priority is not None:
-            return priority
+        final = self._pop_live(self._final_waiters)
+        if final is not None:
+            return final
         if self.normal_active >= self.normal_capacity:
             return None
-        return self._pop_live(self._normal_waiters)
+        retrieval = self._pop_live(self._retrieval_waiters)
+        if retrieval is not None:
+            return retrieval
+        return self._pop_live(self._initial_waiters)
+
+    def _queue_for(self, phase: ModelPhase) -> deque[_Waiter]:
+        if phase == "final":
+            return self._final_waiters
+        if phase == "retrieval":
+            return self._retrieval_waiters
+        if phase == "initial":
+            return self._initial_waiters
+        raise ValueError(f"Unknown L2 phase: {phase}")
 
     @staticmethod
     def _pop_live(queue: deque[_Waiter]) -> _Waiter | None:
@@ -119,33 +127,28 @@ class _PriorityLimiter:
                 return waiter
         return None
 
-    def _can_grant(self, priority: bool) -> bool:
-        return self.active < self.capacity and (
-            priority or self.normal_active < self.normal_capacity
-        )
-
-    def _mark_granted(self, priority: bool) -> None:
+    def _mark_granted(self, phase: ModelPhase) -> None:
         self.active += 1
-        if not priority:
+        if phase != "final":
             self.normal_active += 1
 
-    def _mark_released(self, priority: bool) -> None:
-        if not priority and self.normal_active <= 0:
+    def _mark_released(self, phase: ModelPhase) -> None:
+        if phase != "final" and self.normal_active <= 0:
             raise RuntimeError("L2 normal limiter released without an active slot")
         self.active -= 1
-        if not priority:
+        if phase != "final":
             self.normal_active -= 1
 
     @asynccontextmanager
-    async def slot(self, *, priority: bool) -> AsyncIterator[float]:
+    async def slot(self, *, phase: ModelPhase) -> AsyncIterator[float]:
         loop = asyncio.get_running_loop()
         started = loop.time()
-        await self.acquire(priority=priority)
+        await self.acquire(phase=phase)
         wait_seconds = loop.time() - started
         try:
             yield wait_seconds
         finally:
-            self.release(priority=priority)
+            self.release(phase=phase)
 
 
 class LunitModelClient:
@@ -175,8 +178,9 @@ class LunitModelClient:
         *,
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
-        priority: bool = False,
+        phase: ModelPhase = "initial",
         max_retries: int | None = None,
+        retry_deadline: float | None = None,
     ) -> dict[str, Any]:
         api_key = self.settings.require_api_key()
         payload: dict[str, Any] = {
@@ -206,7 +210,7 @@ class LunitModelClient:
             queue_wait = 0.0
             try:
                 async with self._upstream_limiter.slot(
-                    priority=priority
+                    phase=phase
                 ) as queue_wait:
                     attempt_started = loop.time()
                     try:
@@ -219,10 +223,10 @@ class LunitModelClient:
                         attempt_latency = loop.time() - attempt_started
             except (httpx2.TimeoutException, httpx2.TransportError) as exc:
                 logger.warning(
-                    "l2_attempt_failed attempt=%s priority=%s queue_wait_ms=%s "
+                    "l2_attempt_failed attempt=%s phase=%s queue_wait_ms=%s "
                     "attempt_latency_ms=%s error_type=%s",
                     attempt + 1,
-                    priority,
+                    phase,
                     round(queue_wait * 1000),
                     round((loop.time() - attempt_started) * 1000)
                     if attempt_started
@@ -232,18 +236,20 @@ class LunitModelClient:
                 last_error = exc
                 if attempt >= retry_limit:
                     break
-                await self._sleep_before_retry(
+                if not await self._sleep_before_retry(
                     attempt,
-                    priority=priority,
+                    phase=phase,
                     reason=type(exc).__name__,
-                )
+                    deadline=retry_deadline,
+                ):
+                    break
                 continue
 
             logger.info(
-                "l2_attempt_complete attempt=%s priority=%s queue_wait_ms=%s "
+                "l2_attempt_complete attempt=%s phase=%s queue_wait_ms=%s "
                 "attempt_latency_ms=%s status=%s",
                 attempt + 1,
-                priority,
+                phase,
                 round(queue_wait * 1000),
                 round(attempt_latency * 1000),
                 response.status_code,
@@ -254,12 +260,14 @@ class LunitModelClient:
                     f"Lunit FM returned HTTP {response.status_code}"
                 )
                 if attempt < retry_limit:
-                    await self._sleep_before_retry(
+                    if not await self._sleep_before_retry(
                         attempt,
-                        priority=priority,
+                        phase=phase,
                         reason=f"http_{response.status_code}",
                         response=response,
-                    )
+                        deadline=retry_deadline,
+                    ):
+                        break
                     continue
 
             if response.status_code >= 400:
@@ -281,10 +289,11 @@ class LunitModelClient:
         self,
         attempt: int,
         *,
-        priority: bool,
+        phase: ModelPhase,
         reason: str,
         response: Any | None = None,
-    ) -> None:
+        deadline: float | None = None,
+    ) -> bool:
         retry_after = self._retry_after_seconds(response)
         if retry_after is None:
             ceiling = min(
@@ -294,15 +303,30 @@ class LunitModelClient:
             delay = random.uniform(0.0, ceiling)
         else:
             delay = min(retry_after, self.settings.retry_max_seconds)
+        if deadline is not None:
+            remaining = deadline - asyncio.get_running_loop().time()
+            required = delay + self.settings.upstream_timeout_seconds
+            if remaining < required:
+                logger.warning(
+                    "l2_retry_skipped next_attempt=%s phase=%s reason=%s "
+                    "remaining_ms=%s required_ms=%s",
+                    attempt + 2,
+                    phase,
+                    reason,
+                    round(max(0.0, remaining) * 1000),
+                    round(required * 1000),
+                )
+                return False
         logger.warning(
-            "l2_retry_scheduled next_attempt=%s priority=%s reason=%s "
+            "l2_retry_scheduled next_attempt=%s phase=%s reason=%s "
             "delay_ms=%s",
             attempt + 2,
-            priority,
+            phase,
             reason,
             round(delay * 1000),
         )
         await asyncio.sleep(delay)
+        return True
 
     @staticmethod
     def _retry_after_seconds(response: Any | None) -> float | None:
