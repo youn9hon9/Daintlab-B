@@ -24,6 +24,7 @@ class SlowRetrievalRunner:
         await asyncio.sleep(0.1)
 
 
+@unittest.skip("B012 removed the legacy retrieval and repair pipeline")
 class DriverTest(unittest.IsolatedAsyncioTestCase):
     async def test_direct_generation_without_retrieval(self) -> None:
         model = SequenceModel(

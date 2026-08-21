@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from src.errors import ConfigurationError
 
 
-# B011 single-call direct fallback. These values define model behavior and must
+# B012 one-shot completion model. These values define model behavior and must
 # change in source (with a new B version), never through deployment environment.
 UPSTREAM_TIMEOUT_SECONDS = 50.0
 REQUEST_TIMEOUT_SECONDS = 120.0
@@ -30,7 +30,7 @@ MAX_SELECTED_EVIDENCE = 2
 CITATION_REPAIR_MIN_SECONDS = 15.0
 RETRIEVAL_ENABLED = False
 RETRIEVAL_GATE_ENABLED = True
-INITIAL_MAX_TOKENS = 512
+INITIAL_MAX_TOKENS = 768
 RETRIEVAL_MAX_TOKENS = 384
 FINAL_MAX_TOKENS = 1_024
 CITATION_REPAIR_MAX_TOKENS = 768

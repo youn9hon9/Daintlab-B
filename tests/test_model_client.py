@@ -116,6 +116,26 @@ class OrderedHTTPClient:
 
 
 class LunitModelClientTest(unittest.IsolatedAsyncioTestCase):
+    def test_extracts_finish_reason_without_replacing_content(self) -> None:
+        message = LunitModelClient._extract_message(
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "role": "assistant",
+                            "content": "answer",
+                            "reasoning_content": "private",
+                        },
+                        "finish_reason": "stop",
+                    }
+                ]
+            }
+        )
+
+        self.assertEqual(message["content"], "answer")
+        self.assertEqual(message["reasoning_content"], "private")
+        self.assertEqual(message["_finish_reason"], "stop")
+
     async def test_sends_explicit_max_tokens(self) -> None:
         http_client = SequenceHTTPClient([FakeResponse(200)])
         client = LunitModelClient(FakeSettings(), http_client=http_client)

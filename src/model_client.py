@@ -427,7 +427,11 @@ class LunitModelClient:
         first = choices[0]
         if not isinstance(first, dict) or not isinstance(first.get("message"), dict):
             raise UpstreamProtocolError("Lunit FM response has no message")
-        return dict(first["message"])
+        message = dict(first["message"])
+        finish_reason = first.get("finish_reason")
+        if isinstance(finish_reason, str):
+            message["_finish_reason"] = finish_reason
+        return message
 
     async def aclose(self) -> None:
         if self._owns_client:

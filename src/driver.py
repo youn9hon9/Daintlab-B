@@ -10,6 +10,7 @@ from src.config import Settings
 from src.errors import UpstreamProtocolError
 from src.mcp_gateway import MCPGateway
 from src.model_client import LunitModelClient
+from src.oneshot import generate_oneshot
 from src.prompts import GENERATION_SYSTEM_PROMPT
 from src.retrieval import RetrievalRunner
 from src.routing import should_offer_retrieval
@@ -42,6 +43,11 @@ class Driver:
         self.gateway_factory = gateway_factory
 
     async def generate(self, history: list[InputMessage]) -> str:
+        # B012 deliberately bypasses every router, tool, retrieval and repair
+        # path below. One request is exactly one answer-producing L2 call.
+        return await generate_oneshot(self.settings, self.model_client, history)
+
+    async def _legacy_generate(self, history: list[InputMessage]) -> str:
         loop = asyncio.get_running_loop()
         started = loop.time()
         deadline_safety = min(
