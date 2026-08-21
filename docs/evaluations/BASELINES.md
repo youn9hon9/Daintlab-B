@@ -55,6 +55,7 @@ Y2는 요청 성공률을 높이려다 요청 점유 시간을 늘리고 처리 
 | 로컬 v2 기준선 | 미확정 | B002/F002 과도기 실행은 실패 포함 | D5를 현 runtime gate로 재평가 후 확정 |
 | B003/F003 runtime 실험 | 폐기 | 동시성 6·짧은 timeout에서 대량 502/504 | 다음 후보는 동시성 4 단독 실험 |
 | F004 frontier 후보 | 조건부 보류 | 58.03점·31/32·282.69초 | 동일 SHA 재실행에서 32/32 확인 |
+| B004 benchmark 후보 | 승격 거부 | 41.26점·25/32·502 7건 | guard·동시성 4 유지, timeout 50초 복원 |
 
 관련 기록:
 
@@ -67,3 +68,4 @@ Y2는 요청 성공률을 높이려다 요청 점유 시간을 늘리고 처리 
 - [B003 runtime 실패](candidates/B003.md)
 - [F003 runtime 실패](candidates/F003.md)
 - [F004 조건부 최고 후보](candidates/F004.md)
+- [B004 runtime 피드백](candidates/B004.md)
