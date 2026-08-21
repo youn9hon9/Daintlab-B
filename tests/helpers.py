@@ -16,14 +16,21 @@ def make_settings(**overrides: Any) -> Settings:
         "lunit_mcp_url": "https://mcp.example.test/mcp",
         "upstream_timeout_seconds": 1.0,
         "request_timeout_seconds": 2.0,
+        "retrieval_timeout_seconds": 1.0,
+        "final_generation_reserve_seconds": 0.5,
         "mcp_tool_timeout_seconds": 1.0,
         "upstream_retries": 0,
+        "upstream_concurrency": 2,
+        "retry_base_seconds": 0.1,
+        "retry_max_seconds": 1.0,
         "max_generation_rounds": 3,
-        "max_retrievals_per_answer": 2,
+        "max_retrievals_per_answer": 1,
         "max_retrieval_model_rounds": 5,
         "max_retrieval_mcp_calls": 3,
         "max_mcp_result_chars": 1000,
+        "max_retrieval_context_chars": 3000,
         "max_evidence_chars": 10_000,
+        "max_selected_evidence": 3,
     }
     values.update(overrides)
     return Settings(**values)

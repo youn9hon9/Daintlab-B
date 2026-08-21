@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import unittest
+from unittest.mock import patch
 
 from src.driver import Driver
 from src.errors import UpstreamProtocolError
@@ -12,6 +14,14 @@ from tests.helpers import (
     make_settings,
     tool_call,
 )
+
+
+class SlowRetrievalRunner:
+    def __init__(self, *args, **kwargs) -> None:
+        pass
+
+    async def run(self, query: str):
+        await asyncio.sleep(0.1)
 
 
 class DriverTest(unittest.IsolatedAsyncioTestCase):
@@ -137,6 +147,43 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
             await driver.generate(
                 [InputMessage(role="user", content="근거가 필요한 질문")]
             )
+
+    async def test_retrieval_timeout_preserves_final_generation(self) -> None:
+        model = SequenceModel(
+            [
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call(
+                            "generation-1",
+                            "retrieve_relevant_content",
+                            {"query": "slow evidence query"},
+                        )
+                    ],
+                },
+                {
+                    "role": "assistant",
+                    "content": "검색 시간 제한을 반영한 최종 답변",
+                },
+            ]
+        )
+        settings = make_settings(
+            request_timeout_seconds=1.0,
+            retrieval_timeout_seconds=0.01,
+            final_generation_reserve_seconds=0.2,
+        )
+        driver = Driver(settings, model_client=model)
+
+        with patch("src.driver.RetrievalRunner", SlowRetrievalRunner):
+            answer = await driver.generate(
+                [InputMessage(role="user", content="근거가 필요한 질문")]
+            )
+
+        self.assertEqual(answer, "검색 시간 제한을 반영한 최종 답변")
+        tool_message = model.calls[-1]["messages"][-1]
+        self.assertEqual(tool_message["role"], "tool")
+        self.assertEqual(json.loads(tool_message["content"])["status"], "no_evidence")
 
 
 if __name__ == "__main__":

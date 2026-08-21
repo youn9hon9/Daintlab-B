@@ -41,18 +41,25 @@ class Settings:
     lunit_mcp_url: str
     upstream_timeout_seconds: float
     request_timeout_seconds: float
+    retrieval_timeout_seconds: float
+    final_generation_reserve_seconds: float
     mcp_tool_timeout_seconds: float
     upstream_retries: int
+    upstream_concurrency: int
+    retry_base_seconds: float
+    retry_max_seconds: float
     max_generation_rounds: int
     max_retrievals_per_answer: int
     max_retrieval_model_rounds: int
     max_retrieval_mcp_calls: int
     max_mcp_result_chars: int
+    max_retrieval_context_chars: int
     max_evidence_chars: int
+    max_selected_evidence: int
 
     @classmethod
     def from_env(cls) -> "Settings":
-        return cls(
+        settings = cls(
             driver_model_id=os.getenv(
                 "DRIVER_MODEL_ID", "lunit-hackathon-driver"
             ).strip(),
@@ -67,30 +74,52 @@ class Settings:
                 "LUNIT_MCP_URL", "https://mcp.hackathon.lunit.io/mcp"
             ).strip(),
             upstream_timeout_seconds=_float_env(
-                "UPSTREAM_TIMEOUT_SECONDS", 90.0
+                "UPSTREAM_TIMEOUT_SECONDS", 60.0
             ),
             request_timeout_seconds=_float_env(
                 "REQUEST_TIMEOUT_SECONDS", 180.0
+            ),
+            retrieval_timeout_seconds=_float_env(
+                "RETRIEVAL_TIMEOUT_SECONDS", 115.0
+            ),
+            final_generation_reserve_seconds=_float_env(
+                "FINAL_GENERATION_RESERVE_SECONDS", 50.0
             ),
             mcp_tool_timeout_seconds=_float_env(
                 "MCP_TOOL_TIMEOUT_SECONDS", 60.0
             ),
             upstream_retries=_int_env("UPSTREAM_RETRIES", 2, minimum=0),
+            upstream_concurrency=_int_env("UPSTREAM_CONCURRENCY", 2),
+            retry_base_seconds=_float_env("RETRY_BASE_SECONDS", 0.5),
+            retry_max_seconds=_float_env("RETRY_MAX_SECONDS", 8.0),
             max_generation_rounds=_int_env("MAX_GENERATION_ROUNDS", 3),
             max_retrievals_per_answer=_int_env(
-                "MAX_RETRIEVALS_PER_ANSWER", 2
+                "MAX_RETRIEVALS_PER_ANSWER", 1
             ),
             max_retrieval_model_rounds=_int_env(
-                "MAX_RETRIEVAL_MODEL_ROUNDS", 9
+                "MAX_RETRIEVAL_MODEL_ROUNDS", 6
             ),
             max_retrieval_mcp_calls=_int_env(
-                "MAX_RETRIEVAL_MCP_CALLS", 6
+                "MAX_RETRIEVAL_MCP_CALLS", 4
             ),
             max_mcp_result_chars=_int_env(
-                "MAX_MCP_RESULT_CHARS", 20_000, minimum=1_024
+                "MAX_MCP_RESULT_CHARS", 10_000, minimum=1_024
             ),
-            max_evidence_chars=_int_env("MAX_EVIDENCE_CHARS", 40_000),
+            max_retrieval_context_chars=_int_env(
+                "MAX_RETRIEVAL_CONTEXT_CHARS", 32_000, minimum=1_024
+            ),
+            max_evidence_chars=_int_env("MAX_EVIDENCE_CHARS", 24_000),
+            max_selected_evidence=_int_env("MAX_SELECTED_EVIDENCE", 3),
         )
+        if (
+            settings.final_generation_reserve_seconds
+            >= settings.request_timeout_seconds
+        ):
+            raise ConfigurationError(
+                "FINAL_GENERATION_RESERVE_SECONDS must be less than "
+                "REQUEST_TIMEOUT_SECONDS"
+            )
+        return settings
 
     def require_api_key(self) -> str:
         if not self.lunit_fm_api_key:

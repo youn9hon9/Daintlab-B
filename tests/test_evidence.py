@@ -54,7 +54,38 @@ class EvidenceRegistryTest(unittest.TestCase):
         self.assertEqual(result.status, "sufficient")
         self.assertEqual(result.evidence[0].source_tool, "fake_search")
 
+    def test_selected_evidence_is_limited_to_max_items(self) -> None:
+        registry = EvidenceRegistry(max_chars=10_000, max_items=2)
+        for index in range(3):
+            registry.capture(
+                "fake_search",
+                {
+                    "cite_uid": f"cite-{index}",
+                    "content": f"evidence {index}",
+                },
+            )
+        selection = CitationSelection.model_validate(
+            {
+                "status": "sufficient",
+                "items": [
+                    {
+                        "cite_uid": f"cite-{index}",
+                        "relevance_score": 1.0 - index / 10,
+                    }
+                    for index in range(3)
+                ],
+            }
+        )
+
+        result = registry.resolve(selection)
+
+        self.assertEqual(result.status, "partial")
+        self.assertEqual(
+            [item.cite_uid for item in result.evidence],
+            ["cite-0", "cite-1"],
+        )
+        self.assertIn("Limited evidence to 2", result.note)
+
 
 if __name__ == "__main__":
     unittest.main()
-
