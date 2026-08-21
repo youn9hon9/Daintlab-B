@@ -185,6 +185,10 @@ class LocalHealthBenchTests(unittest.TestCase):
 
         self.assertEqual(result["summary"]["run_timeout_failed"], 2)
         self.assertFalse(result["summary"]["promotion_eligible"])
+        self.assertEqual(result["summary"]["settled_before_deadline"], 0)
+        self.assertEqual(result["summary"]["cases_per_minute"], 0.0)
+        self.assertEqual(result["summary"]["successful_cases_per_minute"], 0.0)
+        self.assertEqual(result["summary"]["deadline_utilization"], 1.0)
         self.assertEqual([row["score"] for row in result["records"] if "score" in row], [])
 
     def test_axis_score_uses_tagged_rubrics(self):

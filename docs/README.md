@@ -23,6 +23,7 @@ docs/
 | 로컬 프록시 실행 | [평가 하네스](../eval/README.md) |
 | 후보 성능 비교 | [평가 인덱스](evaluations/README.md) |
 | 현재 best model SHA와 runtime 기준 확인 | [현재 기준점](evaluations/BASELINES.md) |
+| runtime 계측 필드와 후보 로그 계약 | [runtime telemetry](evaluations/TELEMETRY.md) |
 | 실패 원인 조사 | [실패 사례](evaluations/incidents/README.md) |
 | 모델 개선 아이디어 도출 | [wiki 인덱스](wiki/README.md) |
 | 현재 우선순위 결정 | [모델 개선 플레이북](wiki/21_에이전트_모델개선_플레이북.md) |

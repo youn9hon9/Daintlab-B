@@ -87,6 +87,12 @@ concurrent generation requests, a 120-second per-request timeout, and a
 zero, and make `promotion_eligible` false. See the
 [incident report](../docs/evaluations/incidents/Y2_COEVAL_TIMEOUT.md).
 
+After evaluation, the proxy captures candidate stdout and merges aggregate-only
+runtime telemetry into the result: cases/minute, direct/RAG counts, request
+latency, and initial/retrieval/final attempt latency and queue wait. Missing
+events add a promotion warning without changing the score. The event contract
+is documented in [TELEMETRY.md](../docs/evaluations/TELEMETRY.md).
+
 ## Run without host Python
 
 When the candidate is listening on host port 8000, run the evaluator in a

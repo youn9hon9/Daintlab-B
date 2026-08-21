@@ -18,6 +18,8 @@ Y2가 로컬 16/16 이후 실제 Trial에서 `coeval_failed_timeout`으로 실�
 내용 표본뿐 아니라 runtime 계약도 강제한다. 생성 동시성 4, 요청당 120초, 평가 본체 420초
 제한을 사용하며 미완료 문항은 `run_timeout` 0점으로 기록한다. 실패가 하나라도 있으면
 `promotion_eligible=false`다. 자세한 근거는 [Y2 timeout incident](incidents/Y2_COEVAL_TIMEOUT.md)에 있다.
+처리량과 direct/RAG·단계별 지연은 [runtime telemetry 계약](TELEMETRY.md)에 따라 결과 JSON에
+병합한다.
 
 ## 기존 16개 패널의 진단
 

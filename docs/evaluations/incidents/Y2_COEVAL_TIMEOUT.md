@@ -81,6 +81,8 @@ Y2는 로컬 문항 성공률을 높이기 위해 요청 예산을 늘리고 동
 - 취소 문항: `run_timeout`, 0점
 - inference·judge·run timeout이 하나라도 있으면 `promotion_eligible=false`
 - p50·p95·최대 모델 지연 기록
+- cases/minute와 deadline 잔여 시간 기록
+- 후보 stdout에서 direct/RAG, initial/retrieval/final과 queue wait 집계
 
 420초는 공식 제한을 확정한 값이 아니라, Y2처럼 제한에 거의 붙은 후보를 조기에 거르기 위한
 보수적 로컬 gate다. Dashboard의 정확한 시간 계약이 확인되면 설정과 문서를 함께 갱신한다.

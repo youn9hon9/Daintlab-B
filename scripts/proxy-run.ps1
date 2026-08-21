@@ -249,7 +249,11 @@ $containerName = "daintlab-b-$safeImageName-$Port-$PID"
 $candidateEnvFile = Join-Path $runtimeRoot "$containerName.env"
 $evaluatorEnvFile = Join-Path $runtimeRoot "$containerName.judge.env"
 $logPath = Join-Path $resultRoot "run-$uniqueSuffix.log"
+$candidateLogPath = Join-Path $resultRoot "candidate-$uniqueSuffix.log"
 $metadataPath = Join-Path $resultRoot "run-$uniqueSuffix.metadata.json"
+$plan["candidate_log_file"] = Get-RepositoryRelativePath `
+    -Root $repositoryRoot `
+    -Path $candidateLogPath
 $startedAt = [DateTime]::UtcNow
 $containerStarted = $false
 $worktreeCreated = $false
@@ -426,6 +430,33 @@ try {
     if ([string]::IsNullOrWhiteSpace($resultPath)) {
         throw "Evaluation finished but no result JSON was found in $resultRoot."
     }
+
+    $candidateLogLines = @(& docker logs --timestamps $containerName 2>&1)
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "Could not read candidate container logs."
+        $candidateLogLines = @()
+    }
+    [IO.File]::WriteAllLines(
+        $candidateLogPath,
+        @($candidateLogLines | ForEach-Object { [string]$_ }),
+        [Text.UTF8Encoding]::new($false)
+    )
+
+    $candidateLogRelative = Get-RepositoryRelativePath `
+        -Root $repositoryRoot `
+        -Path $candidateLogPath
+    $resultRelative = Get-RepositoryRelativePath `
+        -Root $repositoryRoot `
+        -Path $resultPath
+    $containerCandidateLog = "/workspace/$candidateLogRelative"
+    $containerResultPath = "/workspace/$resultRelative"
+    Invoke-Native docker @(
+        "run", "--rm", "-v", $repositoryMount, "-w", "/workspace",
+        "--entrypoint", "python", $EvaluatorImage,
+        "-m", "eval.runtime_telemetry",
+        "--log", $containerCandidateLog,
+        "--result", $containerResultPath
+    )
 
     $handoffDirectory = Join-Path $repositoryRoot "docs\evaluations\results"
     [IO.Directory]::CreateDirectory($handoffDirectory) | Out-Null

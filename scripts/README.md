@@ -78,12 +78,15 @@ L2 limiter가 더 작으면 queue wait가 발생하며, 이것도 runtime 평가
 
 - 결과 JSON: 점수, 축별 결과와 문항별 상태
 - sample coverage: theme·axis·category·turn shape·rubric 규모의 집계
+- runtime telemetry: 처리량, direct/RAG, 단계별 지연과 queue wait 집계
 - 실행 로그: 위 진행 상황판과 마지막 요약
+- 후보 로그: `candidate-*.log` raw stdout; Git에 올리지 않음
 - 메타데이터 JSON: 브랜치, 버전, SHA, 시간과 결과 경로
 
 평가가 성공하면 공유 가능한 구조화 결과를
 `docs/evaluations/results/<version>.json`에도 자동 복사한다. 이 파일에는 원문 prompt,
 응답, rubric과 API 키가 없으므로 피드백 Markdown과 함께 `dev`에 커밋한다.
+공유 JSON에는 후보 raw log가 아니라 [정의된 집계](../docs/evaluations/TELEMETRY.md)만 들어간다.
 
 완료 후 에이전트에게 다음처럼 요청하면 된다.
 

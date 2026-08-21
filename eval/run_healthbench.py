@@ -712,6 +712,13 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
     mean_score = max(0.0, min(1.0, statistics.fmean(scores))) if scores else None
     interval = bootstrap_interval(records, args.seed)
     run_timeout_failed = sum(r["status"] == "run_timeout" for r in records)
+    settled_before_deadline = len(records) - run_timeout_failed
+    cases_per_minute = (
+        settled_before_deadline / wall_seconds * 60 if wall_seconds > 0 else None
+    )
+    successful_cases_per_minute = (
+        len(successful) / wall_seconds * 60 if wall_seconds > 0 else None
+    )
     promotion_eligible = (
         len(successful) == len(records)
         and run_timeout_failed == 0
@@ -750,6 +757,11 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
             "promotion_eligible": promotion_eligible,
             "success_rate": len(successful) / len(records),
             "wall_seconds": wall_seconds,
+            "settled_before_deadline": settled_before_deadline,
+            "cases_per_minute": cases_per_minute,
+            "successful_cases_per_minute": successful_cases_per_minute,
+            "deadline_headroom_seconds": max(0.0, args.run_timeout - wall_seconds),
+            "deadline_utilization": min(1.0, wall_seconds / args.run_timeout),
             "mean_model_latency_seconds": statistics.fmean(model_latencies)
             if model_latencies
             else None,
