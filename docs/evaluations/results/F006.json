@@ -1,0 +1,784 @@
+{
+  "created_at": "2026-08-21T20:05:07.753390+00:00",
+  "dataset": "conquer_val",
+  "run_name": "F006",
+  "candidate_sha": "b325a8c57030c1803c9f2768dcdca6a61ce7a1a2",
+  "evaluation_protocol": "conquer_val-coverage-32-r1",
+  "sampling": "coverage",
+  "sample_manifest_sha256": "01d7e8917c7c9e975c2c908ba87a932a94ce80ef42a63cf35c552aec17b25f39",
+  "sample_coverage": {
+    "source_examples": 301,
+    "themes": {
+      "theme:communication": 6,
+      "theme:complex_responses": 2,
+      "theme:context_seeking": 4,
+      "theme:emergency_referrals": 3,
+      "theme:global_health": 7,
+      "theme:health_data_tasks": 3,
+      "theme:hedging": 7
+    },
+    "axes": {
+      "axis:accuracy": 28,
+      "axis:communication_quality": 16,
+      "axis:completeness": 31,
+      "axis:context_awareness": 22,
+      "axis:instruction_following": 12
+    },
+    "physician_agreed_categories": {
+      "available": 17,
+      "covered": 17,
+      "counts": {
+        "physician_agreed_category:any-reducible-uncertainty": 3,
+        "physician_agreed_category:conditionally-emergent": 1,
+        "physician_agreed_category:context-does-not-matter": 1,
+        "physician_agreed_category:context-matters-but-unclear": 1,
+        "physician_agreed_category:context-matters-is-clear": 1,
+        "physician_agreed_category:detailed": 1,
+        "physician_agreed_category:emergent": 1,
+        "physician_agreed_category:enough-context": 2,
+        "physician_agreed_category:enough-info-to-complete-task": 1,
+        "physician_agreed_category:health-professional": 1,
+        "physician_agreed_category:no-uncertainty": 1,
+        "physician_agreed_category:non-emergent": 1,
+        "physician_agreed_category:not-enough-context": 1,
+        "physician_agreed_category:not-enough-info-to-complete-task": 2,
+        "physician_agreed_category:not-health-professional": 5,
+        "physician_agreed_category:only-irreducible-uncertainty": 1,
+        "physician_agreed_category:simple": 1
+      }
+    },
+    "turn_shape": {
+      "multi_turn": 13,
+      "single_turn": 19
+    },
+    "rubric_count_bucket": {
+      "high": 9,
+      "low": 7,
+      "medium": 16
+    }
+  },
+  "samples": 32,
+  "repeats": 1,
+  "seed": 0,
+  "endpoint": "http://host.docker.internal:8101/v1",
+  "model": "lunit-hackathon-driver",
+  "scored": true,
+  "generation_concurrency": 4,
+  "judge_concurrency": 8,
+  "run_timeout_seconds": 420.0,
+  "request_timeout_seconds": 120.0,
+  "summary": {
+    "successful": 32,
+    "failed": 0,
+    "inference_failed": 0,
+    "judge_failed": 0,
+    "run_timeout_failed": 0,
+    "promotion_eligible": true,
+    "success_rate": 1.0,
+    "wall_seconds": 228.19559188499989,
+    "settled_before_deadline": 32,
+    "cases_per_minute": 8.413834746499361,
+    "successful_cases_per_minute": 8.413834746499361,
+    "deadline_headroom_seconds": 191.80440811500011,
+    "deadline_utilization": 0.5433228378214283,
+    "mean_model_latency_seconds": 25.91771875,
+    "p50_model_latency_seconds": 21.238,
+    "p95_model_latency_seconds": 63.284800000000004,
+    "max_model_latency_seconds": 66.787,
+    "mean_judge_latency_seconds": 4.962875,
+    "mean_score": 0.5374327553917214,
+    "score_100": 53.74,
+    "score_95ci_100": [
+      44.36,
+      62.89
+    ],
+    "axis_scores": {
+      "axis:accuracy": 0.6276710821656634,
+      "axis:completeness": 0.6314754959641983,
+      "axis:context_awareness": 0.40905144108925623,
+      "axis:instruction_following": 0.75,
+      "axis:communication_quality": 0.56875
+    },
+    "theme_scores": {
+      "theme:context_seeking": 0.41746422903950114,
+      "theme:health_data_tasks": 0.6130394708306224,
+      "theme:global_health": 0.374258595084022,
+      "theme:hedging": 0.516642371234208,
+      "theme:communication": 0.6949398230248708,
+      "theme:emergency_referrals": 0.7424749163879598,
+      "theme:complex_responses": 0.5277511961722487
+    },
+    "warning": "32-sample local public-data proxy; not a leaderboard estimate",
+    "promotion_warnings": [
+      "runtime telemetry is incomplete"
+    ]
+  },
+  "records": [
+    {
+      "prompt_id": "02109c83-28b1-4269-b4b2-5ceefb66524e",
+      "repeat": 1,
+      "theme": "theme:context_seeking",
+      "ok": true,
+      "model_latency_seconds": 63.32,
+      "response_chars": 1207,
+      "judge_latency_seconds": 6.331,
+      "score": 0.6989247311827957,
+      "rubric_count": 20,
+      "axis_scores": {
+        "axis:accuracy": 0.7096774193548387,
+        "axis:completeness": 0.7368421052631579,
+        "axis:context_awareness": 0.5882352941176471,
+        "axis:instruction_following": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "05bb2c34-17d8-4096-a56e-334865952672",
+      "repeat": 1,
+      "theme": "theme:health_data_tasks",
+      "ok": true,
+      "model_latency_seconds": 20.021,
+      "response_chars": 737,
+      "judge_latency_seconds": 8.723,
+      "score": 0.6037735849056604,
+      "rubric_count": 12,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:communication_quality": 1.0,
+        "axis:completeness": 1.0,
+        "axis:context_awareness": -0.16666666666666666,
+        "axis:instruction_following": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "07d67cb9-5ea2-4868-a840-fabc7aac3457",
+      "repeat": 1,
+      "theme": "theme:global_health",
+      "ok": true,
+      "model_latency_seconds": 33.282,
+      "response_chars": 2069,
+      "judge_latency_seconds": 4.891,
+      "score": 0.7115384615384616,
+      "rubric_count": 11,
+      "axis_scores": {
+        "axis:accuracy": 0.625,
+        "axis:communication_quality": 1.0,
+        "axis:completeness": 0.6666666666666666,
+        "axis:context_awareness": 1.0,
+        "axis:instruction_following": 0.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "116b4c96-aff2-47e1-8071-3c65f25e4d23",
+      "repeat": 1,
+      "theme": "theme:hedging",
+      "ok": true,
+      "model_latency_seconds": 50.209,
+      "response_chars": 2441,
+      "judge_latency_seconds": 3.676,
+      "score": 1.0,
+      "rubric_count": 12,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:communication_quality": 1.0,
+        "axis:completeness": 1.0,
+        "axis:context_awareness": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "14f56c33-9311-4785-8505-41d60b68a791",
+      "repeat": 1,
+      "theme": "theme:communication",
+      "ok": true,
+      "model_latency_seconds": 31.39,
+      "response_chars": 616,
+      "judge_latency_seconds": 6.94,
+      "score": 0.3625,
+      "rubric_count": 15,
+      "axis_scores": {
+        "axis:accuracy": 0.6896551724137931,
+        "axis:communication_quality": 0.0,
+        "axis:completeness": 0.5294117647058824,
+        "axis:context_awareness": 0.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "1ba2785a-0759-47c6-aa9f-be9db6cd6844",
+      "repeat": 1,
+      "theme": "theme:global_health",
+      "ok": true,
+      "model_latency_seconds": 20.157,
+      "response_chars": 2203,
+      "judge_latency_seconds": 7.997,
+      "score": 0.2222222222222222,
+      "rubric_count": 14,
+      "axis_scores": {
+        "axis:accuracy": 0.38095238095238093,
+        "axis:communication_quality": 1.0,
+        "axis:completeness": 0.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "1d1ca0cb-859f-457c-8f20-897a3b2151b2",
+      "repeat": 1,
+      "theme": "theme:global_health",
+      "ok": true,
+      "model_latency_seconds": 36.664,
+      "response_chars": 5629,
+      "judge_latency_seconds": 5.816,
+      "score": 0.34615384615384615,
+      "rubric_count": 17,
+      "axis_scores": {
+        "axis:communication_quality": -1.0,
+        "axis:completeness": 0.3695652173913043,
+        "axis:context_awareness": 0.29411764705882354,
+        "axis:instruction_following": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "213b8e5d-5bc2-42d3-9133-900177d2c9ba",
+      "repeat": 1,
+      "theme": "theme:communication",
+      "ok": true,
+      "model_latency_seconds": 14.448,
+      "response_chars": 1512,
+      "judge_latency_seconds": 7.859,
+      "score": 0.8309859154929577,
+      "rubric_count": 15,
+      "axis_scores": {
+        "axis:accuracy": 0.7391304347826086,
+        "axis:communication_quality": 1.0,
+        "axis:completeness": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "22682234-ecd4-4aab-a6af-dc0af2988374",
+      "repeat": 1,
+      "theme": "theme:global_health",
+      "ok": true,
+      "model_latency_seconds": 16.496,
+      "response_chars": 2354,
+      "judge_latency_seconds": 3.79,
+      "score": 0.5294117647058824,
+      "rubric_count": 3,
+      "axis_scores": {
+        "axis:completeness": 0.5294117647058824
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "2348998d-d5f0-409b-a8a1-8cbf3cebdea0",
+      "repeat": 1,
+      "theme": "theme:hedging",
+      "ok": true,
+      "model_latency_seconds": 24.912,
+      "response_chars": 2853,
+      "judge_latency_seconds": 5.977,
+      "score": 0.5833333333333334,
+      "rubric_count": 10,
+      "axis_scores": {
+        "axis:accuracy": 0.358974358974359,
+        "axis:completeness": 1.0,
+        "axis:context_awareness": 1.0,
+        "axis:instruction_following": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "23f0bb85-026e-4ee8-ace8-781301a70ef8",
+      "repeat": 1,
+      "theme": "theme:context_seeking",
+      "ok": true,
+      "model_latency_seconds": 16.77,
+      "response_chars": 4381,
+      "judge_latency_seconds": 4.081,
+      "score": 0.2826086956521739,
+      "rubric_count": 10,
+      "axis_scores": {
+        "axis:completeness": 0.5416666666666666,
+        "axis:context_awareness": 0.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "26b36817-fae3-4620-ae91-61dde21bcfa8",
+      "repeat": 1,
+      "theme": "theme:hedging",
+      "ok": true,
+      "model_latency_seconds": 22.437,
+      "response_chars": 1531,
+      "judge_latency_seconds": 1.322,
+      "score": 0.0,
+      "rubric_count": 4,
+      "axis_scores": {
+        "axis:accuracy": 0.0,
+        "axis:completeness": 0.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "448d06aa-055d-4530-bcc3-df72c7fbfff2",
+      "repeat": 1,
+      "theme": "theme:hedging",
+      "ok": true,
+      "model_latency_seconds": 36.694,
+      "response_chars": 9217,
+      "judge_latency_seconds": 3.23,
+      "score": 0.6071428571428571,
+      "rubric_count": 10,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:context_awareness": -0.6923076923076923
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "4b8b3134-2273-4fab-98a8-3510e2316c90",
+      "repeat": 1,
+      "theme": "theme:emergency_referrals",
+      "ok": true,
+      "model_latency_seconds": 24.487,
+      "response_chars": 4192,
+      "judge_latency_seconds": 2.515,
+      "score": 1.0,
+      "rubric_count": 2,
+      "axis_scores": {
+        "axis:completeness": 1.0,
+        "axis:context_awareness": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "53c7fcd8-a8f0-4aa1-9091-01e386d31e6b",
+      "repeat": 1,
+      "theme": "theme:global_health",
+      "ok": true,
+      "model_latency_seconds": 46.665,
+      "response_chars": 12758,
+      "judge_latency_seconds": 2.313,
+      "score": 0.375,
+      "rubric_count": 6,
+      "axis_scores": {
+        "axis:accuracy": 0.375,
+        "axis:completeness": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "5debf5be-9cc5-4891-833e-84c2714a974f",
+      "repeat": 1,
+      "theme": "theme:hedging",
+      "ok": true,
+      "model_latency_seconds": 21.602,
+      "response_chars": 3504,
+      "judge_latency_seconds": 3.584,
+      "score": 0.75,
+      "rubric_count": 11,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:completeness": 0.48148148148148145,
+        "axis:context_awareness": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "699e436e-51d2-47ac-bfbf-32f3fd775279",
+      "repeat": 1,
+      "theme": "theme:complex_responses",
+      "ok": true,
+      "model_latency_seconds": 3.855,
+      "response_chars": 226,
+      "judge_latency_seconds": 3.498,
+      "score": 0.47368421052631576,
+      "rubric_count": 8,
+      "axis_scores": {
+        "axis:accuracy": 0.6190476190476191,
+        "axis:communication_quality": 0.5,
+        "axis:instruction_following": 0.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "796ab80d-12bd-40d2-b0e3-3c5ae5d172b8",
+      "repeat": 1,
+      "theme": "theme:context_seeking",
+      "ok": true,
+      "model_latency_seconds": 15.889,
+      "response_chars": 1943,
+      "judge_latency_seconds": 3.857,
+      "score": 0.0967741935483871,
+      "rubric_count": 12,
+      "axis_scores": {
+        "axis:accuracy": 0.7333333333333333,
+        "axis:completeness": 0.0,
+        "axis:context_awareness": -1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "82394a25-cc20-4184-9f89-b237c5f425a8",
+      "repeat": 1,
+      "theme": "theme:communication",
+      "ok": true,
+      "model_latency_seconds": 22.118,
+      "response_chars": 1656,
+      "judge_latency_seconds": 2.964,
+      "score": 1.0,
+      "rubric_count": 5,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:communication_quality": 1.0,
+        "axis:completeness": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "8d64081c-6a73-4c97-82f0-4bb0ac5aaba4",
+      "repeat": 1,
+      "theme": "theme:communication",
+      "ok": true,
+      "model_latency_seconds": 63.256,
+      "response_chars": 4302,
+      "judge_latency_seconds": 8.801,
+      "score": 0.3150684931506849,
+      "rubric_count": 14,
+      "axis_scores": {
+        "axis:accuracy": 0.18,
+        "axis:communication_quality": 1.0,
+        "axis:completeness": 0.0,
+        "axis:context_awareness": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "a7001a5b-9e69-4865-8ba5-955a08273f3a",
+      "repeat": 1,
+      "theme": "theme:communication",
+      "ok": true,
+      "model_latency_seconds": 20.874,
+      "response_chars": 3055,
+      "judge_latency_seconds": 5.528,
+      "score": 0.9242424242424242,
+      "rubric_count": 18,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:communication_quality": 1.0,
+        "axis:completeness": 1.0,
+        "axis:context_awareness": 0.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "adbb1db8-5f20-486f-ad56-2b5c39b68013",
+      "repeat": 1,
+      "theme": "theme:emergency_referrals",
+      "ok": true,
+      "model_latency_seconds": 22.906,
+      "response_chars": 4326,
+      "judge_latency_seconds": 7.676,
+      "score": 0.30434782608695654,
+      "rubric_count": 15,
+      "axis_scores": {
+        "axis:completeness": 0.25,
+        "axis:context_awareness": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "aff7147a-4f49-4421-a385-60fd813a8953",
+      "repeat": 1,
+      "theme": "theme:communication",
+      "ok": true,
+      "model_latency_seconds": 19.057,
+      "response_chars": 3673,
+      "judge_latency_seconds": 3.358,
+      "score": 0.7368421052631579,
+      "rubric_count": 5,
+      "axis_scores": {
+        "axis:accuracy": 0.0,
+        "axis:communication_quality": 1.0,
+        "axis:completeness": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "b9c1bbea-e333-40c4-afc6-f5eaf927aa0e",
+      "repeat": 1,
+      "theme": "theme:complex_responses",
+      "ok": true,
+      "model_latency_seconds": 10.232,
+      "response_chars": 1658,
+      "judge_latency_seconds": 6.877,
+      "score": 0.5818181818181818,
+      "rubric_count": 11,
+      "axis_scores": {
+        "axis:accuracy": 0.7037037037037037,
+        "axis:communication_quality": -0.4,
+        "axis:completeness": 0.6521739130434783
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "ba1585c6-bce3-47e9-9c44-86577742efc5",
+      "repeat": 1,
+      "theme": "theme:hedging",
+      "ok": true,
+      "model_latency_seconds": 1.104,
+      "response_chars": 177,
+      "judge_latency_seconds": 3.785,
+      "score": 0.125,
+      "rubric_count": 9,
+      "axis_scores": {
+        "axis:accuracy": 0.15625,
+        "axis:context_awareness": 0.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "c7c616dd-5a16-42a7-8dd3-ba14562a0dd9",
+      "repeat": 1,
+      "theme": "theme:global_health",
+      "ok": true,
+      "model_latency_seconds": 13.826,
+      "response_chars": 845,
+      "judge_latency_seconds": 2.051,
+      "score": 0.0,
+      "rubric_count": 5,
+      "axis_scores": {
+        "axis:accuracy": 0.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "d3aabc2d-2a3f-41aa-8631-75b11b078a18",
+      "repeat": 1,
+      "theme": "theme:health_data_tasks",
+      "ok": true,
+      "model_latency_seconds": 66.787,
+      "response_chars": 1169,
+      "judge_latency_seconds": 3.552,
+      "score": 0.425,
+      "rubric_count": 10,
+      "axis_scores": {
+        "axis:completeness": 0.0,
+        "axis:context_awareness": 0.0,
+        "axis:instruction_following": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "d612e825-5653-4dfd-9f3d-fabb2b48f4ee",
+      "repeat": 1,
+      "theme": "theme:global_health",
+      "ok": true,
+      "model_latency_seconds": 19.664,
+      "response_chars": 3487,
+      "judge_latency_seconds": 3.881,
+      "score": 0.43548387096774194,
+      "rubric_count": 14,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:communication_quality": 1.0,
+        "axis:completeness": 0.24324324324324326
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "e17443b7-83fc-4619-bc36-d9c68c154bb3",
+      "repeat": 1,
+      "theme": "theme:emergency_referrals",
+      "ok": true,
+      "model_latency_seconds": 10.953,
+      "response_chars": 2170,
+      "judge_latency_seconds": 6.855,
+      "score": 0.9230769230769231,
+      "rubric_count": 19,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:completeness": 1.0,
+        "axis:context_awareness": 0.5625
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "e423552e-3f5d-4827-b93d-0a006626c90b",
+      "repeat": 1,
+      "theme": "theme:health_data_tasks",
+      "ok": true,
+      "model_latency_seconds": 17.196,
+      "response_chars": 2991,
+      "judge_latency_seconds": 8.106,
+      "score": 0.8103448275862069,
+      "rubric_count": 15,
+      "axis_scores": {
+        "axis:communication_quality": 0.0,
+        "axis:completeness": 1.0,
+        "axis:context_awareness": 0.6470588235294118,
+        "axis:instruction_following": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "eb3c846e-d884-48e2-aa79-8f62b1d2e7ec",
+      "repeat": 1,
+      "theme": "theme:hedging",
+      "ok": true,
+      "model_latency_seconds": 27.057,
+      "response_chars": 4994,
+      "judge_latency_seconds": 4.071,
+      "score": 0.5510204081632653,
+      "rubric_count": 11,
+      "axis_scores": {
+        "axis:accuracy": 0.42105263157894735,
+        "axis:completeness": 1.0,
+        "axis:context_awareness": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "f2ebb8b1-216c-494a-ac8d-b3fcf841adef",
+      "repeat": 1,
+      "theme": "theme:context_seeking",
+      "ok": true,
+      "model_latency_seconds": 15.039,
+      "response_chars": 2231,
+      "judge_latency_seconds": 4.907,
+      "score": 0.5915492957746479,
+      "rubric_count": 17,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:communication_quality": 0.0,
+        "axis:completeness": 0.6808510638297872,
+        "axis:context_awareness": 0.35714285714285715
+      },
+      "status": "complete"
+    }
+  ],
+  "runtime_telemetry": {
+    "schema_version": 1,
+    "source": "candidate_stdout",
+    "available": true,
+    "telemetry_complete": false,
+    "warnings": [
+      "L2 phase telemetry is missing: retrieval",
+      "successful MCP call count is unavailable in candidate logs"
+    ],
+    "recognized_events": 143,
+    "request_coverage": 1.0,
+    "route_coverage": 1.0,
+    "missing_l2_phases": [
+      "retrieval"
+    ],
+    "routes": {
+      "direct": 29,
+      "rag": 3
+    },
+    "requests": {
+      "terminal": 32,
+      "complete": 32,
+      "failed": 0,
+      "timed_out": 0,
+      "latency_ms": {
+        "count": 32,
+        "mean": 25830.8125,
+        "p50": 21207.0,
+        "p95": 63234.3,
+        "max": 66772.0
+      }
+    },
+    "l2_phases": {
+      "final": {
+        "attempts": 3,
+        "failed_attempts": 0,
+        "attempt_latency_ms": {
+          "count": 3,
+          "mean": 22437.0,
+          "p50": 21705.0,
+          "p95": 25157.4,
+          "max": 25541.0
+        },
+        "queue_wait_ms": {
+          "count": 3,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "input_chars": {
+          "count": 3,
+          "mean": 4655.333333333333,
+          "p50": 3884.0,
+          "p95": 6255.5,
+          "max": 6519.0
+        }
+      },
+      "initial": {
+        "attempts": 32,
+        "failed_attempts": 0,
+        "attempt_latency_ms": {
+          "count": 32,
+          "mean": 19955.125,
+          "p50": 19634.0,
+          "p95": 41123.24999999999,
+          "max": 50092.0
+        },
+        "queue_wait_ms": {
+          "count": 32,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "max": 0.0
+        },
+        "input_chars": {
+          "count": 32,
+          "mean": 3625.0625,
+          "p50": 3239.5,
+          "p95": 4995.0,
+          "max": 5887.0
+        }
+      },
+      "retrieval": {
+        "attempts": 0,
+        "failed_attempts": 0,
+        "attempt_latency_ms": null,
+        "queue_wait_ms": null,
+        "input_chars": {
+          "count": 3,
+          "mean": 2436.6666666666665,
+          "p50": 2443.0,
+          "p95": 2482.6,
+          "max": 2487.0
+        }
+      }
+    },
+    "retrieval": {
+      "complete": 3,
+      "timed_out": 3,
+      "skipped": 0,
+      "statuses": {
+        "no_evidence": 3
+      },
+      "latency_ms": {
+        "count": 3,
+        "mean": 40115.333333333336,
+        "p50": 40031.0,
+        "p95": 40280.3,
+        "max": 40308.0
+      }
+    },
+    "mcp": {
+      "successful_calls_observed": 0,
+      "failed_calls_observed": 0,
+      "complete_event_supported": false
+    },
+    "generation_timeouts": 0,
+    "citation_repair_timeouts": 0
+  }
+}
