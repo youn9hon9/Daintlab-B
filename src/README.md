@@ -12,5 +12,5 @@ The active submission path is split into explicit responsibilities:
 - `config.py`: environment-backed runtime settings
 
 The repository-root `app.py` remains a thin entrypoint and the container still
-binds to `0.0.0.0:8000`. Development-only evaluation code lives under
-`eval/` and is not copied into the submission image.
+binds to `0.0.0.0:8000`. The local proxy-evaluation harness is maintained on
+the separate `dev` branch.
