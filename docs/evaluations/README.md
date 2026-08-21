@@ -3,7 +3,17 @@
 후보 모델별 로컬 프록시 결과와 실제 리더보드 피드백의 인덱스다. 결과 문서는
 사실 기록이며, 일반화된 설계 지식은 [wiki](../wiki/README.md)에 둔다.
 
-## 현재 판단
+> **기준선 변경 (2026-08-22, origin/dev):** Y2는 실제 Trial에서
+> `coeval_failed_timeout`으로 탈락했다. 공식 best model이자 실제 Trial 성공
+> 기준선은 **D5**(`b76170e15242a0c046ae7d892998de10f9d404fc`, Trial 42.48점)다.
+> 로컬 프록시 프로토콜도 16개 `legacy-v1`에서 32개 `coverage-v2`(생성 동시성 4,
+> 문항당 120초, 평가 본체 420초, 실패 시 `promotion_eligible=false`)로 바뀌었다.
+> 아래 표의 16개 행은 옛 프로토콜 결과이며 32개 `coverage-v2` 결과와 점수를
+> 직접 비교하지 않는다. 전체 근거는 `git show origin/dev:docs/evaluations/BASELINES.md`와
+> `git show origin/dev:docs/evaluations/incidents/Y2_COEVAL_TIMEOUT.md` 참고
+> (이 브랜치에는 병합하지 않음).
+
+## 현재 판단 (legacy-v1, 16문항 — 옛 프로토콜)
 
 | 후보 | 표본 | 점수 | 성공률 | 평균 모델 지연 | 판단 |
 |---|---:|---:|---:|---:|---|
@@ -17,9 +27,20 @@
 | [Y4](candidates/Y4.md) | 16 | 38.86 | 100% | 41.07초 | Y3 동일 모델 재측정; 버전 이름 충돌 |
 | [Y5](candidates/Y5.md) | 평가 대기 | - | - | - | `yh-submission`의 Y2 복귀·법령 schema 최적화 |
 | [F001](candidates/F001.md) | 16 | 42.88 | 100% | 19.12초 | Y2 대비 -11.80점, 지연은 -33.23초; role 태깅 승격 보류, 원인 미분리 |
-| [F002](candidates/F002.md) | 평가 대기 | - | - | - | budget 소유권을 `src/config.py` 상수로 이전(값 변경 없음), F001 관측 근거로 각 값 독립 판단 |
 
-`*` D5 지연은 성공 요청만의 평균이다.
+`*` D5 지연은 성공 요청만의 평균이다. D5의 legacy-v1 성공률(68.75%)은 옛 로컬
+timeout 때문이며, 실제 Trial은 42.48점으로 성공했다 — 위 기준선 변경 안내 참고.
+
+## 현재 판단 (coverage-v2, 32문항 — 현재 표준 프로토콜)
+
+| 후보 | 표본 | 점수 | 성공률 | 평균 모델 지연 | 판단 |
+|---|---:|---:|---:|---:|---|
+| [B002](candidates/B002.md) | 32 | 46.43 | 87.50% | 57.14초 | Y2 계열 장시간 예산, 502 4건, `promotion_eligible=false` |
+| [F002](candidates/F002.md) | 32 | 46.88 | 90.63% | 29.68초 | B002와 동석수(신뢰구간 겹침), 502 3건, `promotion_eligible=false` |
+| [F003](candidates/F003.md) | 평가 대기 | - | - | - | runtime을 D5 검증 프로파일로 정렬(동시성 6, 요청 90초 등), retrieval-shape 값은 유지 |
+
+B002·F002는 모두 502 실패로 32/32를 완주하지 못해 승격 대상이 아니다. 두 후보
+모두 D5보다 앞서 있지 않다 — 다음 표준 로컬 기준선은 D5의 coverage-v2 재평가다.
 
 초기 8개 탐색 실험은 [U1](candidates/U1.md), [D2](candidates/D2.md),
 [U2](candidates/U2.md)를 참고한다. 표본이 달라 위 표의 대표 평가와 직접 순위를
