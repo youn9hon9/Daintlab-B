@@ -1,0 +1,9 @@
+.DS_Store
+.env
+.lunit_api_key
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
