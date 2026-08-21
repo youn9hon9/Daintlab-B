@@ -8,11 +8,19 @@ from typing import Any
 
 from src.config import Settings
 from src.errors import UpstreamProtocolError
+from src.guidance import assess_response_guidance
 from src.mcp_gateway import MCPGateway
 from src.model_client import LunitModelClient
 from src.prompts import GENERATION_SYSTEM_PROMPT
 from src.retrieval import RetrievalRunner
+from src.routing import should_offer_retrieval
+from src.safety import assess_risk
 from src.schemas import InputMessage, RetrievalEnvelope
+from src.validation import (
+    assess_citation_grounding,
+    remove_unknown_citations,
+    validate_answer,
+)
 from src.tooling import (
     RETRIEVE_TOOL,
     assistant_message_for_history,
@@ -54,6 +62,9 @@ class Driver:
             request_deadline
             - self.settings.final_generation_reserve_seconds
         )
+        assessment = assess_risk(history)
+        guidance = assess_response_guidance(history, assessment)
+        retrieval_allowed = should_offer_retrieval(history)
         conversation = [message.model_dump() for message in history]
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": GENERATION_SYSTEM_PROMPT},
@@ -63,6 +74,8 @@ class Driver:
                     {
                         "task": "Answer the latest user message.",
                         "conversation": conversation,
+                        "risk_flags": assessment.model_dump(mode="json"),
+                        "response_guidance": guidance.model_dump(mode="json"),
                     },
                     ensure_ascii=False,
                     separators=(",", ":"),
@@ -70,15 +83,13 @@ class Driver:
             },
         ]
         retrieval_count = 0
+        final_content: str | None = None
+        last_envelope: RetrievalEnvelope | None = None
 
         for generation_round in range(self.settings.max_generation_rounds):
             final_phase = retrieval_count > 0
             if final_phase:
-                final_budget = (
-                    self.settings.request_timeout_seconds
-                    - (loop.time() - started)
-                    - deadline_safety
-                )
+                final_budget = request_deadline - loop.time()
                 if final_budget <= 0:
                     logger.warning(
                         "generation_timed_out phase=final reason=no_budget"
@@ -101,7 +112,7 @@ class Driver:
             else:
                 assistant = await self.model_client.chat(
                     messages,
-                    tools=[RETRIEVE_TOOL],
+                    tools=[RETRIEVE_TOOL] if retrieval_allowed else None,
                     phase="initial",
                     retry_deadline=initial_retry_deadline,
                 )
@@ -120,7 +131,8 @@ class Driver:
                         generation_round + 1,
                         retrieval_count,
                     )
-                    return content.strip()
+                    final_content = content.strip()
+                    break
                 raise UpstreamProtocolError(
                     "Lunit FM returned neither text nor tool calls"
                 )
@@ -218,16 +230,54 @@ class Driver:
                     round((loop.time() - retrieval_started) * 1000),
                     round(max(0.0, retrieval_budget), 3),
                 )
+                last_envelope = envelope
                 self._append_tool_result(
                     messages,
                     call,
                     name,
                     envelope.model_dump_json(exclude_none=True),
                 )
+        else:
+            raise UpstreamProtocolError(
+                "Lunit FM did not produce a final answer within the round budget"
+            )
 
-        raise UpstreamProtocolError(
-            "Lunit FM did not produce a final answer within the round budget"
-        )
+        if final_content is None:
+            raise UpstreamProtocolError("Lunit FM returned no final answer")
+
+        if last_envelope is not None:
+            result = validate_answer(
+                final_content, last_envelope.evidence, last_envelope.status
+            )
+            if result.unknown_citations:
+                final_content = remove_unknown_citations(final_content, result)
+                logger.warning(
+                    "unknown_citations_removed count=%s",
+                    len(result.unknown_citations),
+                )
+            if result.missing_citation_despite_evidence:
+                logger.warning("citation_missing repair_skipped=latency_policy")
+
+            grounding_checks = assess_citation_grounding(
+                final_content, last_envelope.evidence
+            )
+            if grounding_checks:
+                low_grounding = [c for c in grounding_checks if c.low_grounding]
+                logger.info(
+                    "citation_grounding_checked citations=%s low_grounding=%s "
+                    "min_overlap=%s",
+                    len(grounding_checks),
+                    len(low_grounding),
+                    min(c.overlap_ratio for c in grounding_checks),
+                )
+                for check in low_grounding:
+                    logger.warning(
+                        "citation_grounding_low citation=%s overlap_ratio=%s",
+                        check.citation,
+                        check.overlap_ratio,
+                    )
+
+        return final_content
 
     @staticmethod
     def _append_tool_result(

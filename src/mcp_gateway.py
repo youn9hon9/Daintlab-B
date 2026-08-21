@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import copy
 import json
 import logging
-import time
 from contextlib import AsyncExitStack
 from types import TracebackType
 from typing import Any
@@ -21,8 +21,13 @@ logger = logging.getLogger(__name__)
 
 
 class MCPGateway:
-    _tool_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
-    _tool_cache_ttl_seconds = 300.0
+    # The live tool schema is fixed for the lifetime of an evaluation process.
+    # Cache it until process restart and serialize cold misses so a concurrent
+    # evaluator wave performs only one tools/list pagination sequence.
+    _tool_cache: dict[str, list[dict[str, Any]]] = {}
+    _tool_cache_locks: dict[
+        asyncio.AbstractEventLoop, dict[str, asyncio.Lock]
+    ] = {}
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -77,18 +82,29 @@ class MCPGateway:
 
     async def list_openai_tools(self) -> list[dict[str, Any]]:
         cache_key = self.settings.lunit_mcp_url
-        cached = self._tool_cache.get(cache_key)
-        now = time.monotonic()
-        if cached is not None and now - cached[0] < self._tool_cache_ttl_seconds:
-            converted = copy.deepcopy(cached[1])
-            self._allowed_tools.update(
-                tool["function"]["name"]
-                for tool in converted
-                if isinstance(tool.get("function"), dict)
-            )
+        converted = self._cached_tools(cache_key)
+        if converted is not None:
             logger.info("mcp_tool_list_cache_hit tools=%s", len(converted))
             return converted
 
+        loop = asyncio.get_running_loop()
+        loop_locks = self._tool_cache_locks.setdefault(loop, {})
+        lock = loop_locks.setdefault(cache_key, asyncio.Lock())
+        async with lock:
+            converted = self._cached_tools(cache_key)
+            if converted is not None:
+                logger.info(
+                    "mcp_tool_list_cache_hit_after_wait tools=%s",
+                    len(converted),
+                )
+                return converted
+
+            converted = await self._fetch_openai_tools()
+            self._tool_cache[cache_key] = copy.deepcopy(converted)
+            logger.info("mcp_tool_list_cache_miss tools=%s", len(converted))
+            return converted
+
+    async def _fetch_openai_tools(self) -> list[dict[str, Any]]:
         client = self._require_client()
         tools: list[Any] = []
         cursor: str | None = None
@@ -116,13 +132,26 @@ class MCPGateway:
                     },
                 }
             )
-        self._tool_cache[cache_key] = (now, copy.deepcopy(converted))
-        logger.info("mcp_tool_list_cache_miss tools=%s", len(converted))
+        return converted
+
+    def _cached_tools(
+        self, cache_key: str
+    ) -> list[dict[str, Any]] | None:
+        cached = self._tool_cache.get(cache_key)
+        if cached is None:
+            return None
+        converted = copy.deepcopy(cached)
+        self._allowed_tools.update(
+            tool["function"]["name"]
+            for tool in converted
+            if isinstance(tool.get("function"), dict)
+        )
         return converted
 
     @classmethod
     def clear_tool_cache(cls) -> None:
         cls._tool_cache.clear()
+        cls._tool_cache_locks.clear()
 
     async def call_tool(
         self, name: str, arguments: dict[str, Any]
@@ -130,15 +159,43 @@ class MCPGateway:
         if name not in self._allowed_tools:
             raise ValueError(f"MCP tool is not allow-listed: {name}")
         client = self._require_client()
-        result = await client.call_tool(
-            name,
-            arguments,
-            read_timeout_seconds=self.settings.mcp_tool_timeout_seconds,
-        )
+        loop = asyncio.get_running_loop()
+        started = loop.time()
+        try:
+            result = await client.call_tool(
+                name,
+                arguments,
+                read_timeout_seconds=self.settings.mcp_tool_timeout_seconds,
+            )
+        except asyncio.CancelledError:
+            # The enclosing retrieval budget (asyncio.timeout in driver.py) can
+            # cancel this call mid-flight. Log it distinctly from an ordinary
+            # failure so telemetry can tell "the retrieval timeout cut off an
+            # in-flight MCP call" apart from "no MCP call was ever attempted."
+            logger.warning(
+                "mcp_tool_cancelled tool=%s latency_ms=%s",
+                name,
+                round((loop.time() - started) * 1000),
+            )
+            raise
+        except Exception as exc:
+            logger.warning(
+                "mcp_tool_failed tool=%s latency_ms=%s error_type=%s",
+                name,
+                round((loop.time() - started) * 1000),
+                type(exc).__name__,
+            )
+            raise
         payload = result.model_dump(
             mode="json",
             by_alias=True,
             exclude_none=True,
+        )
+        logger.info(
+            "mcp_tool_complete tool=%s latency_ms=%s status=%s",
+            name,
+            round((loop.time() - started) * 1000),
+            "error" if payload.get("isError") is True else "ok",
         )
         raw_content = json.dumps(
             payload,

@@ -25,6 +25,7 @@ class CitableItem(BaseModel):
 
     cite_uid: str
     relevance_score: float = Field(ge=0.0)
+    role: Literal["primary", "corroborating", "caveat"] = "primary"
 
 
 class CitationSelection(BaseModel):
@@ -39,6 +40,7 @@ class ResolvedEvidence(BaseModel):
     citation: str
     cite_uid: str
     relevance_score: float
+    role: Literal["primary", "corroborating", "caveat"] = "primary"
     source_tool: str
     payload: Any
 
@@ -47,4 +49,28 @@ class RetrievalEnvelope(BaseModel):
     status: Literal["sufficient", "partial", "no_evidence"]
     note: str = ""
     evidence: list[ResolvedEvidence] = Field(default_factory=list)
+
+
+class RiskFlag(BaseModel):
+    category: str
+    matched_text: str
+    turn_index: int
+
+
+class RiskAssessment(BaseModel):
+    active_categories: list[str] = Field(default_factory=list)
+    flags: list[RiskFlag] = Field(default_factory=list)
+    reassurance_detected: bool = False
+    note: str = ""
+
+    @property
+    def has_risk(self) -> bool:
+        return bool(self.active_categories)
+
+
+class ResponseGuidance(BaseModel):
+    clarification_needed: bool = False
+    missing_context: list[str] = Field(default_factory=list)
+    global_context_needed: bool = False
+    note: str = ""
 

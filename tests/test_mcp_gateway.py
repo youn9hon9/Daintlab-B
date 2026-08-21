@@ -228,6 +228,51 @@ class MCPGatewayLifecycleTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(FakeClient.instances[1].list_cursors, [])
         self.assertEqual(tools[0]["function"]["name"], "fake_search")
 
+    async def test_concurrent_gateways_share_one_cold_tool_list_fetch(
+        self,
+    ) -> None:
+        settings = make_settings()
+        first_list_started = asyncio.Event()
+        release_first_list = asyncio.Event()
+        list_calls = 0
+
+        original_list_tools = FakeClient.list_tools
+
+        async def blocking_list_tools(
+            client: FakeClient, *, cursor: str | None = None
+        ):
+            nonlocal list_calls
+            list_calls += 1
+            if list_calls == 1:
+                first_list_started.set()
+                await release_first_list.wait()
+            return await original_list_tools(client, cursor=cursor)
+
+        with (
+            patch("src.mcp_gateway.httpx2.AsyncClient", FakeHTTPClient),
+            patch(
+                "src.mcp_gateway.streamable_http_client",
+                self.fake_streamable_http_client,
+            ),
+            patch("src.mcp_gateway.Client", FakeClient),
+            patch.object(FakeClient, "list_tools", blocking_list_tools),
+        ):
+            async with MCPGateway(settings) as first, MCPGateway(
+                settings
+            ) as second:
+                first_task = asyncio.create_task(first.list_openai_tools())
+                await first_list_started.wait()
+                second_task = asyncio.create_task(second.list_openai_tools())
+                await asyncio.sleep(0)
+                release_first_list.set()
+                first_tools, second_tools = await asyncio.gather(
+                    first_task, second_task
+                )
+
+        self.assertEqual(list_calls, 1)
+        self.assertEqual(first_tools, second_tools)
+        self.assertIn("fake_search", second._allowed_tools)
+
     async def test_cancellation_exits_quickly_in_the_owner_task(self) -> None:
         settings = make_settings(
             mcp_tool_timeout_seconds=20.0,

@@ -98,7 +98,10 @@ class RetrievalRunner:
                             *mcp_tools,
                             FINALIZE_TOOL,
                         ]
-                        tool_choice: dict[str, Any] | None = None
+                        # A retrieval turn must either use MCP or finish. Requiring
+                        # a tool prevents a text-only response from wasting a full
+                        # model round; the no-call branch below remains defensive.
+                        tool_choice: str | dict[str, Any] | None = "required"
                         if force_finalize:
                             tool_choice = {
                                 "type": "function",
@@ -127,17 +130,11 @@ class RetrievalRunner:
                             )
                             continue
 
-                        pending_calls: list[
-                            tuple[
-                                dict[str, Any],
-                                str,
-                                dict[str, Any],
-                                tuple[str, str],
-                            ]
-                        ] = []
                         final_selection: CitationSelection | None = None
                         for call in calls:
                             name = tool_call_name(call)
+                            if name != "finalize_retrieval":
+                                continue
                             try:
                                 arguments = parse_tool_arguments(call)
                             except (ValueError, json.JSONDecodeError) as exc:
@@ -148,23 +145,57 @@ class RetrievalRunner:
                                     f"Invalid JSON arguments: {exc}",
                                 )
                                 continue
+                            try:
+                                final_selection = (
+                                    CitationSelection.model_validate(arguments)
+                                )
+                            except ValidationError as exc:
+                                self._append_tool_error(
+                                    messages,
+                                    call,
+                                    name,
+                                    "Invalid finalize_retrieval payload: "
+                                    f"{exc.title}",
+                                )
+                                continue
+                            break
 
+                        if final_selection is not None:
+                            sibling_calls = sum(
+                                tool_call_name(call) != "finalize_retrieval"
+                                for call in calls
+                            )
+                            if sibling_calls:
+                                logger.info(
+                                    "retrieval_finalize_short_circuit "
+                                    "skipped_tool_calls=%s",
+                                    sibling_calls,
+                                )
+                            return registry.resolve(final_selection)
+
+                        pending_calls: list[
+                            tuple[
+                                dict[str, Any],
+                                str,
+                                dict[str, Any],
+                                tuple[str, str],
+                            ]
+                        ] = []
+                        for call in calls:
+                            name = tool_call_name(call)
                             if name == "finalize_retrieval":
-                                try:
-                                    final_selection = (
-                                        CitationSelection.model_validate(arguments)
-                                    )
-                                except ValidationError as exc:
-                                    self._append_tool_error(
-                                        messages,
-                                        call,
-                                        name,
-                                        "Invalid finalize_retrieval payload: "
-                                        f"{exc.title}",
-                                    )
-                                    continue
-                                # Calls after finalize cannot depend on fresh results.
-                                break
+                                # Invalid finalize calls were recorded above.
+                                continue
+                            try:
+                                arguments = parse_tool_arguments(call)
+                            except (ValueError, json.JSONDecodeError) as exc:
+                                self._append_tool_error(
+                                    messages,
+                                    call,
+                                    name or "unknown_tool",
+                                    f"Invalid JSON arguments: {exc}",
+                                )
+                                continue
 
                             if name not in allowed_names:
                                 self._append_tool_error(
@@ -254,11 +285,10 @@ class RetrievalRunner:
                                         # while the failed attempt still counts
                                         # against the global MCP budget.
                                         seen_mcp_calls.discard(call_key)
-                                    logger.warning(
-                                        "mcp_tool_failed tool=%s error_type=%s",
-                                        name,
-                                        type(result).__name__,
-                                    )
+                                    # mcp_gateway.call_tool already logs
+                                    # mcp_tool_failed with latency before
+                                    # raising, so this branch only handles the
+                                    # tool-result bookkeeping.
                                     self._append_tool_error(
                                         messages,
                                         call,
@@ -291,9 +321,6 @@ class RetrievalRunner:
 
                         if session_error is not None:
                             raise session_error
-                        if final_selection is not None:
-                            return registry.resolve(final_selection)
-
             except Exception as exc:
                 if (
                     session_retries < 1

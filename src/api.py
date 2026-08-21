@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import sys
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -23,6 +24,11 @@ from src.schemas import ChatCompletionRequest
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    # docs/evaluations/TELEMETRY.md collects the candidate container's stdout.
+    # logging.basicConfig defaults to stderr, and the local proxy's docker-logs
+    # collection treats stderr output as an error, which silently dropped all
+    # runtime_telemetry for F003. See F004 candidate notes.
+    stream=sys.stdout,
 )
 logger = logging.getLogger(__name__)
 
@@ -127,12 +133,7 @@ def create_app(
             ):
                 answer = await request.app.state.driver.generate(parsed.messages)
         except TimeoutError:
-            elapsed_ms = round((time.monotonic() - started) * 1000)
-            logger.warning(
-                "request_timed_out id=%s latency_ms=%s",
-                request_id,
-                elapsed_ms,
-            )
+            logger.warning("request_timed_out id=%s", request_id)
             return _error_response(
                 504,
                 "The driver exceeded the request time limit.",
