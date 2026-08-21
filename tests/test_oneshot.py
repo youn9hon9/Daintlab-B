@@ -27,7 +27,7 @@ class OneShotDriverTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(model.calls[0]["tools"])
         self.assertIsNone(model.calls[0]["tool_choice"])
         self.assertEqual(model.calls[0]["max_retries"], 0)
-        self.assertEqual(model.calls[0]["max_tokens"], 768)
+        self.assertIsNone(model.calls[0]["max_tokens"])
 
     async def test_reasoning_only_response_is_rejected(self) -> None:
         model = SequenceModel(

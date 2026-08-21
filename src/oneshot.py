@@ -35,24 +35,32 @@ async def generate_oneshot(
     assistant = await model_client.chat(
         messages,
         phase="initial",
-        max_tokens=settings.initial_max_tokens,
         max_retries=0,
     )
     elapsed_ms = round((loop.time() - started) * 1_000)
     content = assistant.get("content")
     reasoning = assistant.get("reasoning_content")
     finish_reason = assistant.get("_finish_reason")
+    usage = assistant.get("_usage")
+    if not isinstance(usage, dict):
+        usage = {}
     output_chars = len(content) if isinstance(content, str) else 0
     reasoning_chars = len(reasoning) if isinstance(reasoning, str) else 0
     logger.info(
         "oneshot_complete input_chars=%s context_chars=%s output_chars=%s "
-        "reasoning_chars=%s finish_reason=%s l2_latency_ms=%s",
+        "reasoning_chars=%s finish_reason=%s l2_latency_ms=%s "
+        "prompt_tokens=%s completion_tokens=%s reasoning_tokens=%s "
+        "total_tokens=%s",
         len(user_payload),
         len(context),
         output_chars,
         reasoning_chars,
         finish_reason or "unknown",
         elapsed_ms,
+        usage.get("prompt_tokens", "unknown"),
+        usage.get("completion_tokens", "unknown"),
+        usage.get("reasoning_tokens", "unknown"),
+        usage.get("total_tokens", "unknown"),
     )
     if not isinstance(content, str) or not content.strip():
         logger.warning(

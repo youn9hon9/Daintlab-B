@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from src.errors import ConfigurationError
 
 
-# B012 one-shot completion model. These values define model behavior and must
+# B013 one-shot model without an explicit upstream output-token ceiling.
 # change in source (with a new B version), never through deployment environment.
 UPSTREAM_TIMEOUT_SECONDS = 50.0
 REQUEST_TIMEOUT_SECONDS = 120.0
