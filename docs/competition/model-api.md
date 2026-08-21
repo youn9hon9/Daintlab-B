@@ -135,7 +135,7 @@ curl -s "$LUNIT_FM_API_URL/v1/chat/completions" \
 
 Lunit FM에서 tool call을 사용할 때도 Chat Completions request의 `tools` 및 관련 parameter를 사용한다.
 
-L2는 일반적인 단일 호출형 chat model과 다르게 Retrieval과 Generation을 분리해 사용하는 것이 권장된다. 각 단계에 제공할 tool과 system prompt는 `Lunit_FM_L2_Guide.md`의 구조를 따른다.
+L2는 일반적인 단일 호출형 chat model과 다르게 Retrieval과 Generation을 분리해 사용하는 것이 권장된다. 각 단계에 제공할 tool과 system prompt는 [Lunit FM L2](l2.md)의 구조를 따른다.
 
 - Retrieval 단계: Hackathon MCP tools + 직접 정의한 `finalize_retrieval`
 - Generation 단계: 직접 정의한 `retrieve_relevant_content`만 제공
