@@ -1,5 +1,6 @@
 @echo off
 setlocal
+chcp 65001 >nul
 
 if "%~1"=="" goto usage
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\proxy.ps1" -Branch "%~1"

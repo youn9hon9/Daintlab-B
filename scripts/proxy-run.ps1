@@ -63,6 +63,9 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+$utf8Encoding = [Text.UTF8Encoding]::new($false)
+[Console]::OutputEncoding = $utf8Encoding
+$OutputEncoding = $utf8Encoding
 
 function Invoke-Native {
     param(
@@ -384,8 +387,23 @@ try {
     }
 
     Write-Host "[$RunName] START | $($Samples * $Repeats) cases"
-    & docker @evalArguments 2>&1 | Tee-Object -FilePath $logPath
-    $evalExitCode = $LASTEXITCODE
+    $logWriter = [IO.StreamWriter]::new(
+        $logPath,
+        $false,
+        [Text.UTF8Encoding]::new($false)
+    )
+    try {
+        & docker @evalArguments 2>&1 | ForEach-Object {
+            $line = [string]$_
+            Write-Host $line
+            $logWriter.WriteLine($line)
+            $logWriter.Flush()
+        }
+        $evalExitCode = $LASTEXITCODE
+    }
+    finally {
+        $logWriter.Dispose()
+    }
     if ($evalExitCode -ne 0) {
         throw "Evaluator failed with exit code $evalExitCode. See $logPath"
     }

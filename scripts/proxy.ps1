@@ -8,6 +8,9 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+$utf8Encoding = [Text.UTF8Encoding]::new($false)
+[Console]::OutputEncoding = $utf8Encoding
+$OutputEncoding = $utf8Encoding
 
 trap {
     Write-Host "ERROR | $($_.Exception.Message)"
