@@ -12,6 +12,7 @@ from src.guidance import assess_response_guidance
 from src.mcp_gateway import MCPGateway
 from src.model_client import LunitModelClient
 from src.prompts import GENERATION_SYSTEM_PROMPT
+from src.readability import assess_readability
 from src.retrieval import RetrievalRunner
 from src.routing import should_offer_retrieval
 from src.safety import assess_risk
@@ -288,6 +289,15 @@ class Driver:
                         check.citation,
                         check.overlap_ratio,
                     )
+
+        readability = assess_readability(final_content)
+        logger.info(
+            "readability_checked sentences=%s long_sentences=%s "
+            "max_sentence_chars=%s",
+            readability.sentence_count,
+            readability.long_sentence_count,
+            readability.max_sentence_chars,
+        )
 
         return final_content
 
