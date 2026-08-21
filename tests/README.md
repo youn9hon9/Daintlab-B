@@ -6,6 +6,10 @@ Run the network-independent unit suite with:
 python -m unittest discover -s tests -v
 ```
 
-The suite mocks L2 and verifies the `/v1/models` shape, request validation, complete ordered multi-turn forwarding, L2-origin assistant content, usage preservation, explicit unsupported-feature errors, missing-key handling, credential-safe upstream errors, and absence of an `OPENAI_API_KEY` code path.
+The suite uses fake model and MCP clients. It covers the API contract, complete
+multi-turn forwarding, conditional retrieval, citation integrity, bounded tool
+results, timeout and upstream-error isolation, and deterministic local
+HealthBench helper behavior.
 
-Real L2 connectivity is a deliberate one-request smoke test and is not part of the repeatable unit suite. Retrieval and Patient Simulator tests will be added only when those stages are implemented.
+Real L2, MCP, judge, and Patient Simulator calls are deliberately excluded from
+the repeatable unit suite.

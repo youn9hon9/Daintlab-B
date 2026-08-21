@@ -9,3 +9,7 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Local evaluation artifacts and downloaded public benchmark data
+eval/.cache/
+eval/results/
