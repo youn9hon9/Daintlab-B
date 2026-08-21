@@ -29,6 +29,10 @@ Evaluator messages
 
 - Generation에는 `retrieve_relevant_content`만 제공한다.
 - Retrieval에는 live MCP tools와 `finalize_retrieval`을 제공한다.
+- Retrieval의 각 non-final L2 round는 tool 선택을 강제하고, 유효한
+  `finalize_retrieval`이 나오면 같은 round의 불필요한 MCP 호출을 생략한다.
+- Live MCP tool schema는 process 동안 재사용하며 동시 cold miss를 한 번의
+  `tools/list` 호출로 합친다.
 - 실제 tool result에 존재하는 `cite_uid`만 최종 evidence로 전달한다.
 - 요청에 포함된 전체 대화가 source of truth이며 server-side session에 의존하지 않는다.
 - 일반 의료 질문과 closed-book MCQ·분류·계산은 L2 1회로 직접 답하고, 최신 정보나 특정 출처가 필요할 때만 Retrieval을 1회 수행한다.

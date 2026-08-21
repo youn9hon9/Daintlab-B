@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import copy
 import json
 import logging
-import time
 from contextlib import AsyncExitStack
 from types import TracebackType
 from typing import Any
@@ -21,8 +21,13 @@ logger = logging.getLogger(__name__)
 
 
 class MCPGateway:
-    _tool_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
-    _tool_cache_ttl_seconds = 300.0
+    # The live tool schema is fixed for the lifetime of an evaluation process.
+    # Cache it until process restart and serialize cold misses so a concurrent
+    # evaluator wave performs only one tools/list pagination sequence.
+    _tool_cache: dict[str, list[dict[str, Any]]] = {}
+    _tool_cache_locks: dict[
+        asyncio.AbstractEventLoop, dict[str, asyncio.Lock]
+    ] = {}
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -77,18 +82,29 @@ class MCPGateway:
 
     async def list_openai_tools(self) -> list[dict[str, Any]]:
         cache_key = self.settings.lunit_mcp_url
-        cached = self._tool_cache.get(cache_key)
-        now = time.monotonic()
-        if cached is not None and now - cached[0] < self._tool_cache_ttl_seconds:
-            converted = copy.deepcopy(cached[1])
-            self._allowed_tools.update(
-                tool["function"]["name"]
-                for tool in converted
-                if isinstance(tool.get("function"), dict)
-            )
+        converted = self._cached_tools(cache_key)
+        if converted is not None:
             logger.info("mcp_tool_list_cache_hit tools=%s", len(converted))
             return converted
 
+        loop = asyncio.get_running_loop()
+        loop_locks = self._tool_cache_locks.setdefault(loop, {})
+        lock = loop_locks.setdefault(cache_key, asyncio.Lock())
+        async with lock:
+            converted = self._cached_tools(cache_key)
+            if converted is not None:
+                logger.info(
+                    "mcp_tool_list_cache_hit_after_wait tools=%s",
+                    len(converted),
+                )
+                return converted
+
+            converted = await self._fetch_openai_tools()
+            self._tool_cache[cache_key] = copy.deepcopy(converted)
+            logger.info("mcp_tool_list_cache_miss tools=%s", len(converted))
+            return converted
+
+    async def _fetch_openai_tools(self) -> list[dict[str, Any]]:
         client = self._require_client()
         tools: list[Any] = []
         cursor: str | None = None
@@ -116,13 +132,26 @@ class MCPGateway:
                     },
                 }
             )
-        self._tool_cache[cache_key] = (now, copy.deepcopy(converted))
-        logger.info("mcp_tool_list_cache_miss tools=%s", len(converted))
+        return converted
+
+    def _cached_tools(
+        self, cache_key: str
+    ) -> list[dict[str, Any]] | None:
+        cached = self._tool_cache.get(cache_key)
+        if cached is None:
+            return None
+        converted = copy.deepcopy(cached)
+        self._allowed_tools.update(
+            tool["function"]["name"]
+            for tool in converted
+            if isinstance(tool.get("function"), dict)
+        )
         return converted
 
     @classmethod
     def clear_tool_cache(cls) -> None:
         cls._tool_cache.clear()
+        cls._tool_cache_locks.clear()
 
     async def call_tool(
         self, name: str, arguments: dict[str, Any]

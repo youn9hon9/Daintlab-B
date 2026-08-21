@@ -165,6 +165,147 @@ class RetrievalTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(result.status, "no_evidence")
         self.assertEqual(result.evidence, [])
+        self.assertEqual(model.calls[0]["tool_choice"], "required")
+
+    async def test_valid_finalize_skips_pending_calls_from_same_round(
+        self,
+    ) -> None:
+        model = SequenceModel(
+            [
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call(
+                            "call-1", "fake_search", {"query": "second"}
+                        )
+                    ],
+                },
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call(
+                            "call-2", "fake_search", {"query": "unused"}
+                        ),
+                        tool_call(
+                            "call-3",
+                            "finalize_retrieval",
+                            {
+                                "status": "sufficient",
+                                "items": [
+                                    {
+                                        "cite_uid": "cite-context-1",
+                                        "relevance_score": 1.0,
+                                    }
+                                ],
+                            },
+                        ),
+                    ],
+                },
+            ]
+        )
+        runner = RetrievalRunner(
+            make_settings(),
+            model,
+            gateway_factory=RecordingGateway,
+        )
+
+        result = await runner.run("test query")
+
+        self.assertEqual(result.status, "sufficient")
+        self.assertEqual(
+            RecordingGateway.instances[0].calls,
+            [("fake_search", {"query": "second"})],
+        )
+        self.assertEqual(model.calls[1]["tool_choice"], "required")
+
+    async def test_invalid_finalize_does_not_skip_valid_pending_call(
+        self,
+    ) -> None:
+        model = SequenceModel(
+            [
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call(
+                            "call-1", "fake_search", {"query": "second"}
+                        ),
+                        tool_call(
+                            "call-2",
+                            "finalize_retrieval",
+                            {"items": []},
+                        ),
+                    ],
+                },
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call(
+                            "call-3",
+                            "finalize_retrieval",
+                            {
+                                "status": "sufficient",
+                                "items": [
+                                    {
+                                        "cite_uid": "cite-context-1",
+                                        "relevance_score": 1.0,
+                                    }
+                                ],
+                            },
+                        )
+                    ],
+                },
+            ]
+        )
+        runner = RetrievalRunner(
+            make_settings(),
+            model,
+            gateway_factory=RecordingGateway,
+        )
+
+        result = await runner.run("test query")
+
+        self.assertEqual(result.status, "sufficient")
+        self.assertEqual(
+            RecordingGateway.instances[0].calls,
+            [("fake_search", {"query": "second"})],
+        )
+
+    async def test_no_tool_response_keeps_repair_fallback(self) -> None:
+        model = SequenceModel(
+            [
+                {"role": "assistant", "content": "I will search."},
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call(
+                            "call-1",
+                            "finalize_retrieval",
+                            {"status": "no_evidence", "items": []},
+                        )
+                    ],
+                },
+            ]
+        )
+        runner = RetrievalRunner(
+            make_settings(),
+            model,
+            gateway_factory=RecordingGateway,
+        )
+
+        result = await runner.run("test query")
+
+        self.assertEqual(result.status, "no_evidence")
+        self.assertEqual(len(model.calls), 2)
+        self.assertEqual(model.calls[0]["tool_choice"], "required")
+        self.assertIn(
+            "Continue retrieval",
+            model.calls[1]["messages"][-1]["content"],
+        )
 
     async def test_duplicate_call_is_skipped_and_forces_finalize(self) -> None:
         model = SequenceModel(
