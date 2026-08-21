@@ -52,7 +52,7 @@ Y2는 요청 성공률을 높이려다 요청 점유 시간을 늘리고 처리 
 | D4 | `ec0d4a4a93d5a05606c8246514e831367e8812ca` | 이전 dy-submission 후보 | 기준점 아님 |
 | D5 | `b76170e15242a0c046ae7d892998de10f9d404fc` | 현재 best model·runtime | 실제 Trial 42.48 성공 |
 | Y2 | `Y2-local-b76170e-coldguard` | D5 + 장시간 예산·동시성 축소 | 실제 Trial timeout, 제출 불가 |
-| 로컬 v2 기준선 | 평가 대기 | D5를 coverage-v2로 재측정 | D5 재평가 후 확정 |
+| 로컬 v2 기준선 | 미확정 | B002/F002 과도기 실행은 실패 포함 | D5를 현 runtime gate로 재평가 후 확정 |
 
 관련 기록:
 
@@ -60,3 +60,5 @@ Y2는 요청 성공률을 높이려다 요청 점유 시간을 늘리고 처리 
 - [Y2 로컬 평가](candidates/Y2.md)
 - [Y2 실제 Trial timeout](incidents/Y2_COEVAL_TIMEOUT.md)
 - [coverage-v2 방법론](METHODOLOGY.md)
+- [B002 32개 평가](candidates/B002.md)
+- [F002 32개 평가](candidates/F002.md)
