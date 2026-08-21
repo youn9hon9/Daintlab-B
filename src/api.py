@@ -75,6 +75,9 @@ def create_app(
             }
         )
 
+    async def health(request: Request) -> JSONResponse:
+        return JSONResponse({"status": "ok"})
+
     async def chat_completions(request: Request) -> JSONResponse:
         request_id = f"chatcmpl-{uuid.uuid4().hex}"
         started = time.monotonic()
@@ -194,6 +197,7 @@ def create_app(
 
     app = Starlette(
         routes=[
+            Route("/health", health, methods=["GET"]),
             Route("/v1/models", list_models, methods=["GET"]),
             Route(
                 "/v1/chat/completions",
