@@ -50,6 +50,7 @@ timeout 때문이며, 실제 Trial은 42.48점으로 성공했다 — 위 기준
 | [F006](candidates/F006.md) | 실제 Trial | **45.88** | - | - | **실제 Dashboard Trial 최고 기록**(D5 42.48 대비 +3.40). runtime 무변경(F005와 동일), citation 근거정합성 관측과 `mcp_tool_cancelled` telemetry만 추가. 로컬 반복 2회 모두 RAG 진입 2~3건이 전부 40초 timeout→no_evidence, grounding 이벤트 0건 |
 | [F007](candidates/F007.md) | 평가 대기 | - | - | - | Retrieval 경로를 완전히 끄는 단일 변수 ablation. F006(RAG 2~3/32 전부 timeout)과 B006(RAG 15~19/32 전부 timeout)이 독립적으로 같은 결론(retrieval이 사실상 항상 실패)에 도달해 같은 다음 실험을 권고했다 |
 | [F008](candidates/F008.md) | 평가 대기 | - | - | - | F007 위에 관측 전용 가독성 체크(문장 길이 proxy, wiki 11)만 추가 — 행동 무변경이라 이 평가는 F007의 retrieval OFF 가설도 그대로 검증한다 |
+| [F009](candidates/F009.md) | 평가 대기 | - | - | - | L2 `max_tokens` 명시(initial/final 1024, retrieval 512) — timeout은 그대로 두고 출력 길이 상한으로 꼬리 지연을 먼저 줄인 뒤 F010에서 timeout 인하를 단일 변수로 시도 |
 
 B002·F002·F003·F004는 32/32를 완주하지 못해 승격되지 않았다. **F005가
 32/32·58.57점으로 처음 승격됐다** — F004의 timeout/동시성 정렬을 그대로
