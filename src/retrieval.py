@@ -209,6 +209,11 @@ class RetrievalRunner:
                                 name, arguments
                             )
                         except Exception as exc:
+                            if (
+                                isinstance(exc, MCPError)
+                                and "Session terminated" in str(exc)
+                            ):
+                                raise
                             logger.warning(
                                 "mcp_tool_failed tool=%s error_type=%s",
                                 name,

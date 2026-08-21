@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import unittest
 
+from mcp import MCPError
+
 from src.retrieval import RetrievalRunner
 from tests.helpers import SequenceModel, make_settings, tool_call
 
@@ -86,9 +88,21 @@ class RecordingGateway:
         return payload, json.dumps(payload, ensure_ascii=False)
 
 
+class SessionTerminatedGateway(RecordingGateway):
+    tool_attempts = 0
+
+    async def call_tool(self, name, arguments):
+        self.__class__.tool_attempts += 1
+        if self.__class__.tool_attempts == 1:
+            raise MCPError(-32000, "Session terminated")
+        return await super().call_tool(name, arguments)
+
+
 class RetrievalTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         RecordingGateway.instances.clear()
+        SessionTerminatedGateway.instances.clear()
+        SessionTerminatedGateway.tool_attempts = 0
 
     async def test_error_tool_result_cannot_be_selected_as_evidence(self) -> None:
         model = SequenceModel(
@@ -244,6 +258,60 @@ class RetrievalTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn("cite-context-1", tool_contents[-1])
         self.assertEqual(result.status, "sufficient")
         self.assertEqual(result.evidence[0].cite_uid, "cite-context-1")
+
+    async def test_session_terminated_tool_call_reopens_gateway_once(self) -> None:
+        model = SequenceModel(
+            [
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call(
+                            "call-1", "fake_search", {"query": "second"}
+                        )
+                    ],
+                },
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call(
+                            "call-2", "fake_search", {"query": "second"}
+                        )
+                    ],
+                },
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call(
+                            "call-3",
+                            "finalize_retrieval",
+                            {
+                                "status": "sufficient",
+                                "items": [
+                                    {
+                                        "cite_uid": "cite-context-1",
+                                        "relevance_score": 1.0,
+                                    }
+                                ],
+                            },
+                        )
+                    ],
+                },
+            ]
+        )
+        runner = RetrievalRunner(
+            make_settings(),
+            model,
+            gateway_factory=SessionTerminatedGateway,
+        )
+
+        result = await runner.run("test query")
+
+        self.assertEqual(result.status, "sufficient")
+        self.assertEqual(SessionTerminatedGateway.tool_attempts, 2)
+        self.assertEqual(len(SessionTerminatedGateway.instances), 2)
 
 
 if __name__ == "__main__":

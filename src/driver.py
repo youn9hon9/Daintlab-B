@@ -41,6 +41,10 @@ class Driver:
     async def generate(self, history: list[InputMessage]) -> str:
         loop = asyncio.get_running_loop()
         started = loop.time()
+        deadline_safety = min(
+            1.0,
+            max(0.01, self.settings.request_timeout_seconds * 0.01),
+        )
         conversation = [message.model_dump() for message in history]
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": GENERATION_SYSTEM_PROMPT},
@@ -59,10 +63,38 @@ class Driver:
         retrieval_count = 0
 
         for generation_round in range(self.settings.max_generation_rounds):
-            assistant = await self.model_client.chat(
-                messages,
-                tools=[RETRIEVE_TOOL],
-            )
+            final_phase = retrieval_count > 0
+            if final_phase:
+                final_budget = (
+                    self.settings.request_timeout_seconds
+                    - (loop.time() - started)
+                    - deadline_safety
+                )
+                if final_budget <= 0:
+                    logger.warning(
+                        "generation_timed_out phase=final reason=no_budget"
+                    )
+                    raise TimeoutError
+                try:
+                    async with asyncio.timeout(final_budget):
+                        assistant = await self.model_client.chat(
+                            messages,
+                            tools=[RETRIEVE_TOOL],
+                            priority=True,
+                            max_retries=1,
+                        )
+                except TimeoutError:
+                    logger.warning(
+                        "generation_timed_out phase=final budget_seconds=%s",
+                        round(final_budget, 3),
+                    )
+                    raise
+            else:
+                assistant = await self.model_client.chat(
+                    messages,
+                    tools=[RETRIEVE_TOOL],
+                    priority=False,
+                )
             calls = validated_tool_calls(assistant)
             if not calls:
                 content = assistant.get("content")
@@ -124,11 +156,13 @@ class Driver:
                     self.model_client,
                     gateway_factory=self.gateway_factory,
                 )
+                retrieval_started = loop.time()
                 elapsed = loop.time() - started
                 available = (
                     self.settings.request_timeout_seconds
                     - elapsed
                     - self.settings.final_generation_reserve_seconds
+                    - deadline_safety
                 )
                 retrieval_budget = min(
                     self.settings.retrieval_timeout_seconds,
@@ -161,6 +195,12 @@ class Driver:
                                 "available knowledge and state important uncertainty."
                             ),
                         )
+                logger.info(
+                    "retrieval_complete status=%s latency_ms=%s budget_seconds=%s",
+                    envelope.status,
+                    round((loop.time() - retrieval_started) * 1000),
+                    round(max(0.0, retrieval_budget), 3),
+                )
                 self._append_tool_result(
                     messages,
                     call,

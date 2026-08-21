@@ -29,8 +29,7 @@ class MCPGateway:
                 httpx2.AsyncClient(
                     headers={"Authorization": f"Bearer {api_key}"},
                     timeout=httpx2.Timeout(
-                        30.0,
-                        read=self.settings.mcp_tool_timeout_seconds + 10.0,
+                        self.settings.mcp_tool_timeout_seconds
                     ),
                     follow_redirects=True,
                 )
@@ -38,7 +37,7 @@ class MCPGateway:
             transport = streamable_http_client(
                 self.settings.lunit_mcp_url,
                 http_client=http_client,
-                terminate_on_close=True,
+                terminate_on_close=self.settings.mcp_terminate_on_close,
             )
             self._client = await stack.enter_async_context(
                 Client(

@@ -13,7 +13,10 @@ RETRIEVE_TOOL = {
         "description": (
             "Retrieve external evidence only when an exact guideline, current "
             "drug approval or safety fact, law, coverage rule, or explicit source "
-            "is required. Make at most one retrieval request per answer. The query "
+            "is required. Do not retrieve for a closed-book multiple-choice, "
+            "classification, or calculation question unless it explicitly asks "
+            "for current information or a source. Make at most one retrieval "
+            "request per answer. The query "
             "must be a single, self-contained question preserving all relevant "
             "patient conditions and jurisdiction or date constraints."
         ),

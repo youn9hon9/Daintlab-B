@@ -19,8 +19,10 @@ def make_settings(**overrides: Any) -> Settings:
         "retrieval_timeout_seconds": 1.0,
         "final_generation_reserve_seconds": 0.5,
         "mcp_tool_timeout_seconds": 1.0,
+        "mcp_terminate_on_close": False,
         "upstream_retries": 0,
         "upstream_concurrency": 2,
+        "upstream_priority_slots": 1,
         "retry_base_seconds": 0.1,
         "retry_max_seconds": 1.0,
         "max_generation_rounds": 3,
@@ -48,12 +50,16 @@ class SequenceModel:
         *,
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
+        priority: bool = False,
+        max_retries: int | None = None,
     ) -> dict[str, Any]:
         self.calls.append(
             {
                 "messages": copy.deepcopy(messages),
                 "tools": copy.deepcopy(tools),
                 "tool_choice": copy.deepcopy(tool_choice),
+                "priority": priority,
+                "max_retries": max_retries,
             }
         )
         if not self.responses:
