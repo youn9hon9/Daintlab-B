@@ -28,13 +28,13 @@ Evaluator messages
 ```
 
 - Generation에는 `retrieve_relevant_content`만 제공한다.
-- Retrieval에는 live MCP tools와 `finalize_retrieval`을 제공한다.
+- Retrieval에는 질문 유형에 맞게 선별한 live MCP tools와 `finalize_retrieval`을 제공한다.
 - 실제 tool result에 존재하는 `cite_uid`만 최종 evidence로 전달한다.
 - 요청에 포함된 전체 대화가 source of truth이며 server-side session에 의존하지 않는다.
-- 일반 의료 질문은 L2 1회로 직접 답하고, 정확한 근거가 필요할 때만 Retrieval을 1회 수행한다.
+- 일반 의료 질문은 한 번의 Generation 호출로 직접 답하고, 외부 근거가 필요한 질문만 Retrieval을 1회 수행한다.
 - L2 HTTP attempt는 동시에 최대 2개만 실행하고 `Retry-After`를 반영한다.
-- Retrieval은 최대 L2 6 round·MCP 4 call·선택 evidence 3개로 제한한다.
-- 전체 180초 중 Retrieval은 최대 115초만 사용해 최종 Generation 시간을 남긴다.
+- Retrieval은 최대 L2 3 round·MCP 2 call·선택 evidence 3개로 제한한다.
+- 전체 170초 중 Retrieval은 최대 45초만 사용해 최종 Generation 시간을 남긴다.
 
 ## 환경변수
 

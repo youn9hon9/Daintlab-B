@@ -37,9 +37,18 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(answer, "직접 생성한 L2 답변")
         self.assertEqual(len(model.calls), 1)
+        self.assertIsNone(model.calls[0]["tools"])
         self.assertEqual(
-            model.calls[0]["tools"][0]["function"]["name"],
-            "retrieve_relevant_content",
+            [message["role"] for message in model.calls[0]["messages"]],
+            ["system", "user"],
+        )
+        self.assertEqual(
+            model.calls[0]["messages"][-1]["content"],
+            "일반적인 건강 질문",
+        )
+        self.assertIn(
+            "answers in English",
+            model.calls[0]["messages"][0]["content"],
         )
 
     async def test_generation_retrieval_generation_flow(self) -> None:
@@ -104,7 +113,10 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
             [
                 InputMessage(role="user", content="이 질환의 목표는?"),
                 InputMessage(role="assistant", content="질환을 알려주세요."),
-                InputMessage(role="user", content="아까 그 질환이요."),
+                InputMessage(
+                    role="user",
+                    content="아까 그 질환의 최신 가이드라인 출처를 알려주세요.",
+                ),
             ]
         )
 
@@ -122,6 +134,70 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             envelope["evidence"][0]["cite_uid"], "cite-test-1"
         )
+        self.assertIsNone(model.calls[-1]["tools"])
+        first_generation_messages = model.calls[0]["messages"]
+        self.assertEqual(
+            [message["role"] for message in first_generation_messages],
+            ["system", "user", "assistant", "user"],
+        )
+        self.assertEqual(
+            first_generation_messages[-1]["content"],
+            "아까 그 질환의 최신 가이드라인 출처를 알려주세요.",
+        )
+
+    async def test_retrieval_timeout_falls_back_to_final_generation(self) -> None:
+        class SlowGateway:
+            def __init__(self, settings) -> None:
+                self.settings = settings
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, traceback) -> None:
+                return None
+
+            async def list_openai_tools(self):
+                await asyncio.sleep(0.1)
+                return []
+
+        model = SequenceModel(
+            [
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call(
+                            "generation-1",
+                            "retrieve_relevant_content",
+                            {"query": "최신 근거가 필요한 질문"},
+                        )
+                    ],
+                },
+                {
+                    "role": "assistant",
+                    "content": "검색 제한을 밝힌 안전한 일반 답변",
+                },
+            ]
+        )
+        driver = Driver(
+            make_settings(
+                retrieval_timeout_seconds=0.01,
+                max_generation_rounds=2,
+                max_retrievals_per_answer=1,
+            ),
+            model_client=model,
+            gateway_factory=SlowGateway,
+        )
+
+        answer = await driver.generate(
+            [InputMessage(role="user", content="최신 기준을 알려주세요")]
+        )
+
+        self.assertEqual(answer, "검색 제한을 밝힌 안전한 일반 답변")
+        self.assertIsNone(model.calls[-1]["tools"])
+        fallback = json.loads(model.calls[-1]["messages"][-1]["content"])
+        self.assertEqual(fallback["status"], "no_evidence")
+        self.assertIn("time budget", fallback["note"])
 
     async def test_malformed_tool_call_is_rejected_before_round_trip(self) -> None:
         model = SequenceModel(

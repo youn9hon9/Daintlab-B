@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import copy
 import json
 from contextlib import AsyncExitStack
 from types import TracebackType
@@ -15,6 +17,11 @@ from src.errors import UpstreamProtocolError
 
 
 class MCPGateway:
+    _tool_cache: dict[str, tuple[dict[str, Any], ...]] = {}
+    _tool_cache_locks: dict[
+        tuple[asyncio.AbstractEventLoop, str], asyncio.Lock
+    ] = {}
+
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self._stack: AsyncExitStack | None = None
@@ -68,6 +75,28 @@ class MCPGateway:
         return self._client
 
     async def list_openai_tools(self) -> list[dict[str, Any]]:
+        cache_key = self.settings.lunit_mcp_url
+        cached = self._tool_cache.get(cache_key)
+        if cached is None:
+            loop = asyncio.get_running_loop()
+            lock_key = (loop, cache_key)
+            lock = self._tool_cache_locks.setdefault(lock_key, asyncio.Lock())
+            async with lock:
+                cached = self._tool_cache.get(cache_key)
+                if cached is None:
+                    cached = tuple(await self._fetch_openai_tools())
+                    self._tool_cache[cache_key] = cached
+
+        converted = copy.deepcopy(list(cached))
+        self._allowed_tools.update(
+            tool["function"]["name"]
+            for tool in converted
+            if isinstance(tool.get("function"), dict)
+            and isinstance(tool["function"].get("name"), str)
+        )
+        return converted
+
+    async def _fetch_openai_tools(self) -> list[dict[str, Any]]:
         client = self._require_client()
         tools: list[Any] = []
         cursor: str | None = None
@@ -84,7 +113,6 @@ class MCPGateway:
         for tool in tools:
             if tool.name == "finalize_retrieval":
                 continue
-            self._allowed_tools.add(tool.name)
             converted.append(
                 {
                     "type": "function",

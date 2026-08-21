@@ -52,6 +52,7 @@ class Settings:
     max_retrievals_per_answer: int
     max_retrieval_model_rounds: int
     max_retrieval_mcp_calls: int
+    max_retrieval_tools: int
     max_mcp_result_chars: int
     max_retrieval_context_chars: int
     max_evidence_chars: int
@@ -77,38 +78,41 @@ class Settings:
                 "UPSTREAM_TIMEOUT_SECONDS", 60.0
             ),
             request_timeout_seconds=_float_env(
-                "REQUEST_TIMEOUT_SECONDS", 180.0
+                "REQUEST_TIMEOUT_SECONDS", 170.0
             ),
             retrieval_timeout_seconds=_float_env(
-                "RETRIEVAL_TIMEOUT_SECONDS", 115.0
+                "RETRIEVAL_TIMEOUT_SECONDS", 45.0
             ),
             final_generation_reserve_seconds=_float_env(
                 "FINAL_GENERATION_RESERVE_SECONDS", 50.0
             ),
             mcp_tool_timeout_seconds=_float_env(
-                "MCP_TOOL_TIMEOUT_SECONDS", 60.0
+                "MCP_TOOL_TIMEOUT_SECONDS", 25.0
             ),
-            upstream_retries=_int_env("UPSTREAM_RETRIES", 2, minimum=0),
+            upstream_retries=_int_env("UPSTREAM_RETRIES", 1, minimum=0),
             upstream_concurrency=_int_env("UPSTREAM_CONCURRENCY", 2),
             retry_base_seconds=_float_env("RETRY_BASE_SECONDS", 0.5),
             retry_max_seconds=_float_env("RETRY_MAX_SECONDS", 8.0),
-            max_generation_rounds=_int_env("MAX_GENERATION_ROUNDS", 3),
+            max_generation_rounds=_int_env("MAX_GENERATION_ROUNDS", 2),
             max_retrievals_per_answer=_int_env(
                 "MAX_RETRIEVALS_PER_ANSWER", 1
             ),
             max_retrieval_model_rounds=_int_env(
-                "MAX_RETRIEVAL_MODEL_ROUNDS", 6
+                "MAX_RETRIEVAL_MODEL_ROUNDS", 3
             ),
             max_retrieval_mcp_calls=_int_env(
-                "MAX_RETRIEVAL_MCP_CALLS", 4
+                "MAX_RETRIEVAL_MCP_CALLS", 2
+            ),
+            max_retrieval_tools=_int_env(
+                "MAX_RETRIEVAL_TOOLS", 6
             ),
             max_mcp_result_chars=_int_env(
-                "MAX_MCP_RESULT_CHARS", 10_000, minimum=1_024
+                "MAX_MCP_RESULT_CHARS", 8_000, minimum=1_024
             ),
             max_retrieval_context_chars=_int_env(
-                "MAX_RETRIEVAL_CONTEXT_CHARS", 32_000, minimum=1_024
+                "MAX_RETRIEVAL_CONTEXT_CHARS", 16_000, minimum=1_024
             ),
-            max_evidence_chars=_int_env("MAX_EVIDENCE_CHARS", 24_000),
+            max_evidence_chars=_int_env("MAX_EVIDENCE_CHARS", 16_000),
             max_selected_evidence=_int_env("MAX_SELECTED_EVIDENCE", 3),
         )
         if (

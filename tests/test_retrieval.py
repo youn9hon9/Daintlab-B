@@ -4,7 +4,12 @@ import json
 import unittest
 
 from src.retrieval import RetrievalRunner
-from tests.helpers import SequenceModel, make_settings, tool_call
+from tests.helpers import (
+    FakeGatewayFactory,
+    SequenceModel,
+    make_settings,
+    tool_call,
+)
 
 
 class ErrorGateway:
@@ -89,6 +94,62 @@ class RecordingGateway:
 class RetrievalTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         RecordingGateway.instances.clear()
+
+    async def test_parallel_tool_calls_respect_budget(self) -> None:
+        model = SequenceModel(
+            [
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call("call-1", "fake_search", {"query": "one"}),
+                        tool_call("call-2", "fake_search", {"query": "two"}),
+                        tool_call("call-3", "fake_search", {"query": "three"}),
+                    ],
+                },
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call(
+                            "call-4",
+                            "finalize_retrieval",
+                            {
+                                "status": "sufficient",
+                                "items": [
+                                    {
+                                        "cite_uid": "cite-test-1",
+                                        "relevance_score": 1.0,
+                                    }
+                                ],
+                            },
+                        )
+                    ],
+                },
+            ]
+        )
+        gateways = FakeGatewayFactory()
+        runner = RetrievalRunner(
+            make_settings(
+                max_retrieval_mcp_calls=2,
+                max_retrieval_tools=1,
+            ),
+            model,
+            gateway_factory=gateways,
+        )
+
+        result = await runner.run("unknown test query")
+
+        self.assertEqual(result.status, "sufficient")
+        self.assertEqual(
+            gateways.instances[0].calls,
+            [
+                ("fake_search", {"query": "one"}),
+                ("fake_search", {"query": "two"}),
+            ],
+        )
+        exhausted = json.loads(model.calls[1]["messages"][-3]["content"])
+        self.assertTrue(exhausted["isError"])
 
     async def test_error_tool_result_cannot_be_selected_as_evidence(self) -> None:
         model = SequenceModel(

@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -12,6 +13,7 @@ from src.mcp_gateway import MCPGateway
 from src.model_client import LunitModelClient
 from src.prompts import GENERATION_SYSTEM_PROMPT
 from src.retrieval import RetrievalRunner
+from src.retrieval_policy import should_offer_retrieval
 from src.schemas import InputMessage, RetrievalEnvelope
 from src.tooling import (
     RETRIEVE_TOOL,
@@ -39,29 +41,44 @@ class Driver:
         self.gateway_factory = gateway_factory
 
     async def generate(self, history: list[InputMessage]) -> str:
-        loop = asyncio.get_running_loop()
-        started = loop.time()
-        conversation = [message.model_dump() for message in history]
+        request_started = time.monotonic()
+        evaluator_instructions = [
+            message.content for message in history if message.role == "system"
+        ]
+        system_prompt = GENERATION_SYSTEM_PROMPT
+        if evaluator_instructions:
+            system_prompt += (
+                "\n\nAdditional instructions supplied with the evaluation request:\n"
+                + "\n".join(evaluator_instructions)
+            )
         messages: list[dict[str, Any]] = [
-            {"role": "system", "content": GENERATION_SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": json.dumps(
-                    {
-                        "task": "Answer the latest user message.",
-                        "conversation": conversation,
-                    },
-                    ensure_ascii=False,
-                    separators=(",", ":"),
-                ),
-            },
+            {"role": "system", "content": system_prompt},
+            *(
+                message.model_dump()
+                for message in history
+                if message.role != "system"
+            ),
         ]
         retrieval_count = 0
+        retrieval_allowed = should_offer_retrieval(history)
+        logger.info("retrieval_gate allowed=%s", retrieval_allowed)
 
         for generation_round in range(self.settings.max_generation_rounds):
+            generation_started = time.monotonic()
             assistant = await self.model_client.chat(
                 messages,
-                tools=[RETRIEVE_TOOL],
+                tools=(
+                    [RETRIEVE_TOOL]
+                    if retrieval_allowed
+                    and retrieval_count
+                    < self.settings.max_retrievals_per_answer
+                    else None
+                ),
+            )
+            logger.info(
+                "generation_model_complete latency_ms=%s retrievals=%s",
+                round((time.monotonic() - generation_started) * 1000),
+                retrieval_count,
             )
             calls = validated_tool_calls(assistant)
             if not calls:
@@ -124,7 +141,8 @@ class Driver:
                     self.model_client,
                     gateway_factory=self.gateway_factory,
                 )
-                elapsed = loop.time() - started
+                retrieval_started = time.monotonic()
+                elapsed = retrieval_started - request_started
                 available = (
                     self.settings.request_timeout_seconds
                     - elapsed
@@ -161,6 +179,11 @@ class Driver:
                                 "available knowledge and state important uncertainty."
                             ),
                         )
+                logger.info(
+                    "retrieval_complete latency_ms=%s status=%s",
+                    round((time.monotonic() - retrieval_started) * 1000),
+                    envelope.status,
+                )
                 self._append_tool_result(
                     messages,
                     call,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from collections.abc import Callable
@@ -12,6 +13,7 @@ from src.config import Settings
 from src.evidence import EvidenceRegistry, extract_cite_uids
 from src.mcp_gateway import MCPGateway
 from src.prompts import RETRIEVAL_SYSTEM_PROMPT
+from src.retrieval_tools import select_retrieval_tools
 from src.schemas import CitationSelection, RetrievalEnvelope
 from src.tooling import (
     FINALIZE_TOOL,
@@ -69,12 +71,21 @@ class RetrievalRunner:
 
         try:
             async with self.gateway_factory(self.settings) as gateway:
-                mcp_tools = await gateway.list_openai_tools()
+                live_tools = await gateway.list_openai_tools()
+                mcp_tools = select_retrieval_tools(
+                    query,
+                    live_tools,
+                    limit=self.settings.max_retrieval_tools,
+                )
                 allowed_names = {
                     tool["function"]["name"]
                     for tool in mcp_tools
                     if isinstance(tool.get("function"), dict)
                 }
+                logger.info(
+                    "retrieval_started selected_tools=%s",
+                    ",".join(sorted(allowed_names)),
+                )
 
                 for round_index in range(
                     self.settings.max_retrieval_model_rounds
@@ -118,6 +129,9 @@ class RetrievalRunner:
                         )
                         continue
 
+                    pending_calls: list[
+                        tuple[dict[str, Any], str, dict[str, Any]]
+                    ] = []
                     for call in calls:
                         name = tool_call_name(call)
                         try:
@@ -154,7 +168,7 @@ class RetrievalRunner:
                             continue
 
                         if (
-                            mcp_call_count
+                            mcp_call_count + len(pending_calls)
                             >= self.settings.max_retrieval_mcp_calls
                         ):
                             self._append_tool_error(
@@ -203,29 +217,39 @@ class RetrievalRunner:
                             continue
 
                         seen_mcp_calls.add(call_key)
+                        pending_calls.append((call, name, arguments))
 
-                        try:
-                            payload, content = await gateway.call_tool(
-                                name, arguments
-                            )
-                        except Exception as exc:
+                    if not pending_calls:
+                        continue
+
+                    mcp_call_count += len(pending_calls)
+                    results = await asyncio.gather(
+                        *(
+                            gateway.call_tool(name, arguments)
+                            for _, name, arguments in pending_calls
+                        ),
+                        return_exceptions=True,
+                    )
+                    for (call, name, _), result in zip(
+                        pending_calls, results, strict=True
+                    ):
+                        if isinstance(result, BaseException):
                             logger.warning(
                                 "mcp_tool_failed tool=%s error_type=%s",
                                 name,
-                                type(exc).__name__,
+                                type(result).__name__,
                             )
                             self._append_tool_error(
                                 messages,
                                 call,
                                 name,
-                                f"MCP tool failed: {type(exc).__name__}",
+                                f"MCP tool failed: {type(result).__name__}",
                             )
-                            mcp_call_count += 1
                             continue
 
+                        payload, content = result
                         if payload.get("isError") is not True:
                             registry.capture(name, payload)
-                        mcp_call_count += 1
                         remaining_context_chars = max(
                             0, context_char_limit - context_chars_used
                         )
