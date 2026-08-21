@@ -50,6 +50,11 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
             "answers in English",
             model.calls[0]["messages"][0]["content"],
         )
+        system_prompt = model.calls[0]["messages"][0]["content"]
+        self.assertIn("Context sufficiency policy", system_prompt)
+        self.assertIn("Urgency policy", system_prompt)
+        self.assertIn("Global and local context policy", system_prompt)
+        self.assertIn("Internal completeness check", system_prompt)
 
     async def test_generation_retrieval_generation_flow(self) -> None:
         model = SequenceModel(
