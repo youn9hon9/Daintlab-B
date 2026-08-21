@@ -24,10 +24,9 @@ from src.schemas import ChatCompletionRequest
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    # docs/evaluations/TELEMETRY.md collects the candidate container's stdout.
-    # logging.basicConfig defaults to stderr, and the local proxy's docker-logs
-    # collection treats stderr output as an error, which silently dropped all
-    # runtime_telemetry for F003. See F004 candidate notes.
+    # The evaluation harness parses candidate telemetry from stdout. Keeping
+    # structured application logs off stderr prevents docker-log collection
+    # from being treated as a failed native command by PowerShell.
     stream=sys.stdout,
 )
 logger = logging.getLogger(__name__)
@@ -80,6 +79,9 @@ def create_app(
                 ],
             }
         )
+
+    async def health(request: Request) -> JSONResponse:
+        return JSONResponse({"status": "ok"})
 
     async def chat_completions(request: Request) -> JSONResponse:
         request_id = f"chatcmpl-{uuid.uuid4().hex}"
@@ -200,6 +202,7 @@ def create_app(
 
     app = Starlette(
         routes=[
+            Route("/health", health, methods=["GET"]),
             Route("/v1/models", list_models, methods=["GET"]),
             Route(
                 "/v1/chat/completions",

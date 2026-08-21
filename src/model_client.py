@@ -23,6 +23,17 @@ logger = logging.getLogger(__name__)
 ModelPhase = Literal["initial", "retrieval", "final"]
 
 
+def _input_metrics(
+    messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None
+) -> tuple[int, int, int, int]:
+    return (
+        len(messages),
+        len(json.dumps(messages, ensure_ascii=False, separators=(",", ":"))),
+        len(tools or []),
+        len(json.dumps(tools or [], ensure_ascii=False, separators=(",", ":"))),
+    )
+
+
 @dataclass(slots=True)
 class _Waiter:
     future: asyncio.Future[None]
@@ -185,6 +196,7 @@ class LunitModelClient:
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
         phase: ModelPhase = "initial",
+        max_tokens: int | None = None,
         max_retries: int | None = None,
         retry_deadline: float | None = None,
     ) -> dict[str, Any]:
@@ -197,6 +209,21 @@ class LunitModelClient:
             payload["tools"] = tools
         if tool_choice is not None:
             payload["tool_choice"] = tool_choice
+        if max_tokens is not None:
+            payload["max_tokens"] = max_tokens
+
+        message_count, message_chars, tool_count, tool_schema_chars = (
+            _input_metrics(messages, tools)
+        )
+        logger.info(
+            "l2_input phase=%s messages=%s message_chars=%s tools=%s "
+            "tool_schema_chars=%s",
+            phase,
+            message_count,
+            message_chars,
+            tool_count,
+            tool_schema_chars,
+        )
 
         endpoint = f"{self.settings.lunit_fm_api_url}/v1/chat/completions"
         headers = {

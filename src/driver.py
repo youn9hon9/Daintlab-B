@@ -8,7 +8,6 @@ from typing import Any
 
 from src.config import Settings
 from src.errors import UpstreamProtocolError
-from src.guidance import assess_response_guidance
 from src.mcp_gateway import MCPGateway
 from src.model_client import LunitModelClient
 from src.prompts import GENERATION_SYSTEM_PROMPT
@@ -63,20 +62,10 @@ class Driver:
             - self.settings.final_generation_reserve_seconds
         )
         assessment = assess_risk(history)
-        guidance = assess_response_guidance(history, assessment)
-        # F007 ablation: F006 and B006 independently found that RAG attempts
-        # almost always exhaust the retrieval budget and fall back to
-        # no_evidence with no usable citation (F006: 2-3/32 RAG entries, all
-        # timed out; B006: 15-19/32, virtually all timed out). Before
-        # investing in a narrower/faster retrieval strategy, this version
-        # measures whether the retrieval path is net-positive at all by
-        # disabling it outright. should_offer_retrieval's keyword gate stays
-        # untouched and is still evaluated (but not acted on) so telemetry
-        # shows how often the old gate would have fired, to inform F008.
-        would_offer_retrieval = should_offer_retrieval(history)
-        if would_offer_retrieval:
-            logger.info("retrieval_gate_suppressed reason=f007_ablation")
-        retrieval_allowed = False
+        retrieval_allowed = self.settings.retrieval_enabled and (
+            not self.settings.retrieval_gate_enabled
+            or should_offer_retrieval(history)
+        )
         conversation = [message.model_dump() for message in history]
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": GENERATION_SYSTEM_PROMPT},
@@ -87,7 +76,6 @@ class Driver:
                         "task": "Answer the latest user message.",
                         "conversation": conversation,
                         "risk_flags": assessment.model_dump(mode="json"),
-                        "response_guidance": guidance.model_dump(mode="json"),
                     },
                     ensure_ascii=False,
                     separators=(",", ":"),
@@ -112,6 +100,7 @@ class Driver:
                         assistant = await self.model_client.chat(
                             messages,
                             phase="final",
+                            max_tokens=self.settings.final_max_tokens,
                             max_retries=1,
                             retry_deadline=request_deadline,
                         )
@@ -124,11 +113,20 @@ class Driver:
             else:
                 assistant = await self.model_client.chat(
                     messages,
-                    tools=[RETRIEVE_TOOL] if retrieval_allowed else None,
+                    tools=(
+                        [RETRIEVE_TOOL]
+                        if retrieval_allowed
+                        else None
+                    ),
                     phase="initial",
+                    max_tokens=self.settings.initial_max_tokens,
                     retry_deadline=initial_retry_deadline,
                 )
             calls = validated_tool_calls(assistant)
+            if calls and not retrieval_allowed:
+                raise UpstreamProtocolError(
+                    "Lunit FM attempted a tool call while retrieval was not offered"
+                )
             if final_phase and calls:
                 raise UpstreamProtocolError(
                     "Lunit FM attempted a tool call during final generation"
@@ -261,32 +259,46 @@ class Driver:
             result = validate_answer(
                 final_content, last_envelope.evidence, last_envelope.status
             )
-            if result.unknown_citations:
-                final_content = remove_unknown_citations(final_content, result)
-                logger.warning(
-                    "unknown_citations_removed count=%s",
-                    len(result.unknown_citations),
-                )
-            if result.missing_citation_despite_evidence:
-                logger.warning("citation_missing repair_skipped=latency_policy")
-
-            grounding_checks = assess_citation_grounding(
-                final_content, last_envelope.evidence
-            )
-            if grounding_checks:
-                low_grounding = [c for c in grounding_checks if c.low_grounding]
-                logger.info(
-                    "citation_grounding_checked citations=%s low_grounding=%s "
-                    "min_overlap=%s",
-                    len(grounding_checks),
-                    len(low_grounding),
-                    min(c.overlap_ratio for c in grounding_checks),
-                )
-                for check in low_grounding:
-                    logger.warning(
-                        "citation_grounding_low citation=%s overlap_ratio=%s",
-                        check.citation,
-                        check.overlap_ratio,
+            if result.has_gap:
+                remaining = request_deadline - loop.time()
+                if remaining >= self.settings.citation_repair_min_seconds:
+                    messages.append(
+                        assistant_message_for_history(
+                            {"role": "assistant", "content": final_content}
+                        )
+                    )
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": json.dumps(
+                                build_repair_instruction(result),
+                                ensure_ascii=False,
+                                separators=(",", ":"),
+                            ),
+                        }
+                    )
+                    try:
+                        async with asyncio.timeout(remaining):
+                            repaired = await self.model_client.chat(
+                                messages,
+                                phase="final",
+                                max_tokens=self.settings.citation_repair_max_tokens,
+                                max_retries=0,
+                                retry_deadline=request_deadline,
+                            )
+                        repaired_content = repaired.get("content")
+                        if isinstance(repaired_content, str) and repaired_content.strip():
+                            final_content = repaired_content.strip()
+                        else:
+                            logger.warning("citation_repair_empty_response")
+                    except TimeoutError:
+                        logger.warning(
+                            "citation_repair_timed_out budget_seconds=%s",
+                            round(remaining, 3),
+                        )
+                else:
+                    logger.info(
+                        "citation_repair_skipped reason=insufficient_time_budget"
                     )
 
         return final_content

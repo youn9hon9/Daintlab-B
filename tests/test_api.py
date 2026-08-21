@@ -36,6 +36,14 @@ class SlowDriver(FakeDriver):
 
 
 class APITest(unittest.TestCase):
+    def test_health_contract(self) -> None:
+        app = create_app(driver=FakeDriver(), settings=make_settings())
+        with TestClient(app) as client:
+            response = client.get("/health")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "ok"})
+
     def test_models_contract(self) -> None:
         app = create_app(driver=FakeDriver(), settings=make_settings())
         with TestClient(app) as client:

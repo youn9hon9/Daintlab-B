@@ -6,46 +6,34 @@ from dataclasses import dataclass
 from src.errors import ConfigurationError
 
 
-# F004 control budgets. These values define evaluated model behavior and must
-# change in source (with a new F version), never through deployment environment.
-#
-# F003 changed upstream/request/final-reserve/mcp-tool timeouts AND
-# concurrency together (all "D5's throughput cluster" at once) and got 11/32
-# success (down from F002's 29/32) with 20x HTTP 502 + 1x 504. That result
-# cannot tell us whether the 30s upstream timeout or the concurrency=6 change
-# caused the collapse -- exactly the multi-variable confound this repo's own
-# incidents (B001, F001) warn against, and D5's own local eval already showed
-# the same 30s-upstream-timeout failure signature (11/16, 502s from
-# ReadTimeout) even though its real Trial passed. F004 isolates concurrency
-# as the only tested variable: timeouts revert to F002's values, and only
-# UPSTREAM_CONCURRENCY changes, from F002's 2 toward D5's 6 in one smaller
-# step (4), per both F002's and F003's own postmortem recommendations.
-UPSTREAM_TIMEOUT_SECONDS = 50.0
+# B010 bounded L2 I/O budget. These values define model behavior and must
+# change in source (with a new B version), never through deployment environment.
+UPSTREAM_TIMEOUT_SECONDS = 30.0
 REQUEST_TIMEOUT_SECONDS = 120.0
 RETRIEVAL_TIMEOUT_SECONDS = 40.0
 FINAL_GENERATION_RESERVE_SECONDS = 50.0
-MCP_TOOL_TIMEOUT_SECONDS = 18.0
+MCP_TOOL_TIMEOUT_SECONDS = 20.0
 MCP_TERMINATE_ON_CLOSE = False
 UPSTREAM_RETRIES = 1
-UPSTREAM_CONCURRENCY = 4
+UPSTREAM_CONCURRENCY = 5
 UPSTREAM_PRIORITY_SLOTS = 1
 RETRY_BASE_SECONDS = 0.5
 RETRY_MAX_SECONDS = 8.0
 MAX_GENERATION_ROUNDS = 3
 MAX_RETRIEVALS_PER_ANSWER = 1
-# The retrieval-shape cluster below is deliberately left at F001/F002's
-# tighter, locally-validated values instead of D5's larger defaults (5
-# rounds, 3 MCP calls, 20,000/16,000 char budgets). D5's real Trial success
-# says nothing about whether its retrieval-shape values were necessary; no
-# postmortem (Y2 timeout incident, F001, F002) has implicated these fields,
-# so copying them here would be an unjustified second variable alongside the
-# throughput realignment above.
-MAX_RETRIEVAL_MODEL_ROUNDS = 4
-MAX_RETRIEVAL_MCP_CALLS = 2
+MAX_RETRIEVAL_MODEL_ROUNDS = 5
+MAX_RETRIEVAL_MCP_CALLS = 3
 MAX_MCP_RESULT_CHARS = 8_000
-MAX_RETRIEVAL_CONTEXT_CHARS = 12_000
-MAX_EVIDENCE_CHARS = 10_000
+MAX_RETRIEVAL_CONTEXT_CHARS = 20_000
+MAX_EVIDENCE_CHARS = 16_000
 MAX_SELECTED_EVIDENCE = 2
+CITATION_REPAIR_MIN_SECONDS = 15.0
+RETRIEVAL_ENABLED = True
+RETRIEVAL_GATE_ENABLED = True
+INITIAL_MAX_TOKENS = 768
+RETRIEVAL_MAX_TOKENS = 384
+FINAL_MAX_TOKENS = 1_024
+CITATION_REPAIR_MAX_TOKENS = 768
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +62,13 @@ class Settings:
     max_retrieval_context_chars: int
     max_evidence_chars: int
     max_selected_evidence: int
+    citation_repair_min_seconds: float
+    retrieval_enabled: bool
+    retrieval_gate_enabled: bool
+    initial_max_tokens: int
+    retrieval_max_tokens: int
+    final_max_tokens: int
+    citation_repair_max_tokens: int
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -110,6 +105,13 @@ class Settings:
             max_retrieval_context_chars=MAX_RETRIEVAL_CONTEXT_CHARS,
             max_evidence_chars=MAX_EVIDENCE_CHARS,
             max_selected_evidence=MAX_SELECTED_EVIDENCE,
+            citation_repair_min_seconds=CITATION_REPAIR_MIN_SECONDS,
+            retrieval_enabled=RETRIEVAL_ENABLED,
+            retrieval_gate_enabled=RETRIEVAL_GATE_ENABLED,
+            initial_max_tokens=INITIAL_MAX_TOKENS,
+            retrieval_max_tokens=RETRIEVAL_MAX_TOKENS,
+            final_max_tokens=FINAL_MAX_TOKENS,
+            citation_repair_max_tokens=CITATION_REPAIR_MAX_TOKENS,
         )
         if (
             settings.final_generation_reserve_seconds

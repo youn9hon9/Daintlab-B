@@ -7,7 +7,7 @@ from typing import Any
 from unittest.mock import AsyncMock, patch
 
 from src.errors import UpstreamError
-from src.model_client import LunitModelClient, _PriorityLimiter
+from src.model_client import LunitModelClient, _PriorityLimiter, _input_metrics
 
 
 _SUCCESS_BODY = {
@@ -15,6 +15,21 @@ _SUCCESS_BODY = {
         {"message": {"role": "assistant", "content": "ok"}},
     ]
 }
+
+
+class InputMetricsTest(unittest.TestCase):
+    def test_counts_serialized_input_without_exposing_content(self) -> None:
+        messages = [{"role": "user", "content": "질문"}]
+        tools = [{"type": "function", "function": {"name": "search"}}]
+
+        message_count, message_chars, tool_count, tool_chars = _input_metrics(
+            messages, tools
+        )
+
+        self.assertEqual(message_count, 1)
+        self.assertEqual(tool_count, 1)
+        self.assertGreater(message_chars, 0)
+        self.assertGreater(tool_chars, 0)
 
 
 @dataclass
@@ -53,9 +68,11 @@ class SequenceHTTPClient:
     def __init__(self, responses: list[FakeResponse]) -> None:
         self.responses = list(responses)
         self.calls = 0
+        self.requests: list[dict[str, Any]] = []
 
     async def post(self, *args: Any, **kwargs: Any) -> FakeResponse:
         self.calls += 1
+        self.requests.append(kwargs)
         if not self.responses:
             raise AssertionError("Fake HTTP client has no response left")
         return self.responses.pop(0)
@@ -99,6 +116,16 @@ class OrderedHTTPClient:
 
 
 class LunitModelClientTest(unittest.IsolatedAsyncioTestCase):
+    async def test_sends_explicit_max_tokens(self) -> None:
+        http_client = SequenceHTTPClient([FakeResponse(200)])
+        client = LunitModelClient(FakeSettings(), http_client=http_client)
+
+        await client.chat(
+            [{"role": "user", "content": "question"}], max_tokens=384
+        )
+
+        self.assertEqual(http_client.requests[0]["json"]["max_tokens"], 384)
+
     async def test_retries_http_500_with_full_jitter(self) -> None:
         http_client = SequenceHTTPClient(
             [FakeResponse(500), FakeResponse(200)]
