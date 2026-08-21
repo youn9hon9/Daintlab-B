@@ -12,7 +12,7 @@ class SettingsTest(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True):
             settings = Settings.from_env()
 
-        self.assertEqual(settings.upstream_timeout_seconds, 50.0)
+        self.assertEqual(settings.upstream_timeout_seconds, 30.0)
         self.assertEqual(settings.request_timeout_seconds, 120.0)
         self.assertEqual(settings.retrieval_timeout_seconds, 40.0)
         self.assertEqual(settings.final_generation_reserve_seconds, 50.0)

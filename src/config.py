@@ -6,9 +6,9 @@ from dataclasses import dataclass
 from src.errors import ConfigurationError
 
 
-# B008 evidence-required retrieval gate. These values define model behavior and must
+# B009 bounded L2 attempt timeout. These values define model behavior and must
 # change in source (with a new B version), never through deployment environment.
-UPSTREAM_TIMEOUT_SECONDS = 50.0
+UPSTREAM_TIMEOUT_SECONDS = 30.0
 REQUEST_TIMEOUT_SECONDS = 120.0
 RETRIEVAL_TIMEOUT_SECONDS = 40.0
 FINAL_GENERATION_RESERVE_SECONDS = 50.0
