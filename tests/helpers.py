@@ -33,6 +33,8 @@ def make_settings(**overrides: Any) -> Settings:
         "max_retrieval_context_chars": 3000,
         "max_evidence_chars": 10_000,
         "max_selected_evidence": 3,
+        "max_tokens_answer": 1024,
+        "max_tokens_retrieval": 512,
     }
     values.update(overrides)
     return Settings(**values)

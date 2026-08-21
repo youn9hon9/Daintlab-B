@@ -192,6 +192,14 @@ class LunitModelClient:
         payload: dict[str, Any] = {
             "model": self.settings.lunit_fm_model,
             "messages": messages,
+            # F009: bound worst-case output length. Retrieval turns only emit
+            # a tool call or a finalize_retrieval payload, so they need far
+            # fewer tokens than a free-text answer.
+            "max_tokens": (
+                self.settings.max_tokens_retrieval
+                if phase == "retrieval"
+                else self.settings.max_tokens_answer
+            ),
         }
         if tools:
             payload["tools"] = tools

@@ -32,6 +32,8 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.max_retrieval_context_chars, 12_000)
         self.assertEqual(settings.max_evidence_chars, 10_000)
         self.assertEqual(settings.max_selected_evidence, 2)
+        self.assertEqual(settings.max_tokens_answer, 1024)
+        self.assertEqual(settings.max_tokens_retrieval, 512)
 
     def test_runtime_budget_environment_is_ignored(self) -> None:
         with patch.dict(
@@ -42,6 +44,7 @@ class SettingsTest(unittest.TestCase):
                 "UPSTREAM_CONCURRENCY": "1",
                 "MAX_RETRIEVAL_MCP_CALLS": "99",
                 "MAX_SELECTED_EVIDENCE": "99",
+                "MAX_TOKENS_ANSWER": "8",
                 "MCP_TERMINATE_ON_CLOSE": "true",
             },
             clear=True,
@@ -53,6 +56,7 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(settings.upstream_concurrency, 4)
         self.assertEqual(settings.max_retrieval_mcp_calls, 2)
         self.assertEqual(settings.max_selected_evidence, 2)
+        self.assertEqual(settings.max_tokens_answer, 1024)
         self.assertFalse(settings.mcp_terminate_on_close)
 
     def test_endpoint_and_identity_fields_still_read_environment(self) -> None:

@@ -28,6 +28,8 @@ class FakeSettings:
     upstream_priority_slots: int = 1
     retry_base_seconds: float = 0.5
     retry_max_seconds: float = 8.0
+    max_tokens_answer: int = 1024
+    max_tokens_retrieval: int = 512
 
     def require_api_key(self) -> str:
         return self.lunit_fm_api_key
@@ -47,6 +49,15 @@ class FakeResponse:
 
     def json(self) -> Any:
         return self._body
+
+
+class CapturingHTTPClient:
+    def __init__(self) -> None:
+        self.payloads: list[dict[str, Any]] = []
+
+    async def post(self, *args: Any, **kwargs: Any) -> FakeResponse:
+        self.payloads.append(kwargs["json"])
+        return FakeResponse(200)
 
 
 class SequenceHTTPClient:
@@ -141,6 +152,30 @@ class LunitModelClientTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(http_client.calls, 2)
         uniform.assert_not_called()
         sleep.assert_awaited_once_with(2.5)
+
+    async def test_max_tokens_uses_retrieval_budget_for_retrieval_phase(
+        self,
+    ) -> None:
+        http_client = CapturingHTTPClient()
+        client = LunitModelClient(FakeSettings(), http_client=http_client)
+
+        await client.chat(
+            [{"role": "user", "content": "query"}], phase="retrieval"
+        )
+
+        self.assertEqual(http_client.payloads[0]["max_tokens"], 512)
+
+    async def test_max_tokens_uses_answer_budget_for_initial_and_final(
+        self,
+    ) -> None:
+        http_client = CapturingHTTPClient()
+        client = LunitModelClient(FakeSettings(), http_client=http_client)
+
+        await client.chat([{"role": "user", "content": "q"}], phase="initial")
+        await client.chat([{"role": "user", "content": "q"}], phase="final")
+
+        self.assertEqual(http_client.payloads[0]["max_tokens"], 1024)
+        self.assertEqual(http_client.payloads[1]["max_tokens"], 1024)
 
     async def test_limits_only_active_http_attempts(self) -> None:
         concurrency = 2

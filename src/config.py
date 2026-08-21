@@ -46,6 +46,15 @@ MAX_MCP_RESULT_CHARS = 8_000
 MAX_RETRIEVAL_CONTEXT_CHARS = 12_000
 MAX_EVIDENCE_CHARS = 10_000
 MAX_SELECTED_EVIDENCE = 2
+# F009: bound worst-case L2 output length so a single call cannot generate
+# indefinitely, one lever for lowering UPSTREAM_TIMEOUT_SECONDS safely in a
+# later version without re-tightening it blindly (see F003/D5's history of
+# 30s-upstream-timeout ReadTimeout failures). initial/final answers are free
+# text with a five-part structure and citations; retrieval turns only emit a
+# tool call or a finalize_retrieval payload capped at MAX_SELECTED_EVIDENCE
+# items, so they need far fewer tokens.
+MAX_TOKENS_ANSWER = 1024
+MAX_TOKENS_RETRIEVAL = 512
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +83,8 @@ class Settings:
     max_retrieval_context_chars: int
     max_evidence_chars: int
     max_selected_evidence: int
+    max_tokens_answer: int
+    max_tokens_retrieval: int
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -110,6 +121,8 @@ class Settings:
             max_retrieval_context_chars=MAX_RETRIEVAL_CONTEXT_CHARS,
             max_evidence_chars=MAX_EVIDENCE_CHARS,
             max_selected_evidence=MAX_SELECTED_EVIDENCE,
+            max_tokens_answer=MAX_TOKENS_ANSWER,
+            max_tokens_retrieval=MAX_TOKENS_RETRIEVAL,
         )
         if (
             settings.final_generation_reserve_seconds
