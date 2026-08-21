@@ -11,7 +11,7 @@ The active submission path is split into explicit responsibilities:
 - `model_client.py`: Lunit model transport, retries, and timeouts
 - `evidence.py`: citation discovery and integrity checks
 - `schemas.py`: request, evidence, and retrieval data contracts
-- `config.py`: environment-backed runtime settings
+- `config.py`: environment-backed endpoints and versioned runtime budgets
 
 The repository-root `app.py` remains a thin entrypoint and the container still
 binds to `0.0.0.0:8000`. Method candidates are developed continuously on
