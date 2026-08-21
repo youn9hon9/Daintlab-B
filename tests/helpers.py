@@ -36,6 +36,10 @@ def make_settings(**overrides: Any) -> Settings:
         "citation_repair_min_seconds": 0.5,
         "retrieval_enabled": True,
         "retrieval_gate_enabled": False,
+        "initial_max_tokens": 768,
+        "retrieval_max_tokens": 384,
+        "final_max_tokens": 1024,
+        "citation_repair_max_tokens": 768,
     }
     values.update(overrides)
     return Settings(**values)
@@ -54,6 +58,7 @@ class SequenceModel:
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
         phase: str = "initial",
+        max_tokens: int | None = None,
         max_retries: int | None = None,
         retry_deadline: float | None = None,
     ) -> dict[str, Any]:
@@ -63,6 +68,7 @@ class SequenceModel:
                 "tools": copy.deepcopy(tools),
                 "tool_choice": copy.deepcopy(tool_choice),
                 "phase": phase,
+                "max_tokens": max_tokens,
                 "max_retries": max_retries,
                 "retry_deadline": retry_deadline,
             }

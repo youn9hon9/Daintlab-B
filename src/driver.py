@@ -96,6 +96,7 @@ class Driver:
                         assistant = await self.model_client.chat(
                             messages,
                             phase="final",
+                            max_tokens=self.settings.final_max_tokens,
                             max_retries=1,
                             retry_deadline=request_deadline,
                         )
@@ -114,6 +115,7 @@ class Driver:
                         else None
                     ),
                     phase="initial",
+                    max_tokens=self.settings.initial_max_tokens,
                     retry_deadline=initial_retry_deadline,
                 )
             calls = validated_tool_calls(assistant)
@@ -275,9 +277,8 @@ class Driver:
                         async with asyncio.timeout(remaining):
                             repaired = await self.model_client.chat(
                                 messages,
-                                tools=[RETRIEVE_TOOL],
-                                tool_choice="none",
                                 phase="final",
+                                max_tokens=self.settings.citation_repair_max_tokens,
                                 max_retries=0,
                                 retry_deadline=request_deadline,
                             )

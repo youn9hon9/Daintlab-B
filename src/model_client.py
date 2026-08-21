@@ -196,6 +196,7 @@ class LunitModelClient:
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
         phase: ModelPhase = "initial",
+        max_tokens: int | None = None,
         max_retries: int | None = None,
         retry_deadline: float | None = None,
     ) -> dict[str, Any]:
@@ -208,6 +209,8 @@ class LunitModelClient:
             payload["tools"] = tools
         if tool_choice is not None:
             payload["tool_choice"] = tool_choice
+        if max_tokens is not None:
+            payload["max_tokens"] = max_tokens
 
         message_count, message_chars, tool_count, tool_schema_chars = (
             _input_metrics(messages, tools)

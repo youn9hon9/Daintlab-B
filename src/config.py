@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from src.errors import ConfigurationError
 
 
-# B009 bounded L2 attempt timeout. These values define model behavior and must
+# B010 bounded L2 I/O budget. These values define model behavior and must
 # change in source (with a new B version), never through deployment environment.
 UPSTREAM_TIMEOUT_SECONDS = 30.0
 REQUEST_TIMEOUT_SECONDS = 120.0
@@ -30,6 +30,10 @@ MAX_SELECTED_EVIDENCE = 2
 CITATION_REPAIR_MIN_SECONDS = 15.0
 RETRIEVAL_ENABLED = True
 RETRIEVAL_GATE_ENABLED = True
+INITIAL_MAX_TOKENS = 768
+RETRIEVAL_MAX_TOKENS = 384
+FINAL_MAX_TOKENS = 1_024
+CITATION_REPAIR_MAX_TOKENS = 768
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +65,10 @@ class Settings:
     citation_repair_min_seconds: float
     retrieval_enabled: bool
     retrieval_gate_enabled: bool
+    initial_max_tokens: int
+    retrieval_max_tokens: int
+    final_max_tokens: int
+    citation_repair_max_tokens: int
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -100,6 +108,10 @@ class Settings:
             citation_repair_min_seconds=CITATION_REPAIR_MIN_SECONDS,
             retrieval_enabled=RETRIEVAL_ENABLED,
             retrieval_gate_enabled=RETRIEVAL_GATE_ENABLED,
+            initial_max_tokens=INITIAL_MAX_TOKENS,
+            retrieval_max_tokens=RETRIEVAL_MAX_TOKENS,
+            final_max_tokens=FINAL_MAX_TOKENS,
+            citation_repair_max_tokens=CITATION_REPAIR_MAX_TOKENS,
         )
         if (
             settings.final_generation_reserve_seconds

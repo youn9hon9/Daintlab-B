@@ -332,7 +332,9 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(answer, "근거 [1] 기반 수정 답변")
         self.assertEqual(len(model.calls), 5)
-        self.assertEqual(model.calls[-1]["tool_choice"], "none")
+        self.assertIsNone(model.calls[-1]["tools"])
+        self.assertIsNone(model.calls[-1]["tool_choice"])
+        self.assertEqual(model.calls[-1]["max_tokens"], 768)
 
     async def test_citation_repair_skipped_when_time_budget_exhausted(self) -> None:
         model = SequenceModel(

@@ -113,6 +113,7 @@ class RetrievalRunner:
                             tools=tools,
                             tool_choice=tool_choice,
                             phase="retrieval",
+                            max_tokens=self.settings.retrieval_max_tokens,
                             retry_deadline=deadline,
                         )
                         calls = validated_tool_calls(assistant)
