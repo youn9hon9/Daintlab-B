@@ -1,1 +1,1 @@
-"""daintlab-a submission service package."""
+"""Lunit hackathon multi-turn driver."""
