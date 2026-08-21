@@ -53,6 +53,7 @@ Y2는 요청 성공률을 높이려다 요청 점유 시간을 늘리고 처리 
 | D5 | `b76170e15242a0c046ae7d892998de10f9d404fc` | 현재 best model·runtime | 실제 Trial 42.48 성공 |
 | Y2 | `Y2-local-b76170e-coldguard` | D5 + 장시간 예산·동시성 축소 | 실제 Trial timeout, 제출 불가 |
 | 로컬 v2 기준선 | 미확정 | B002/F002 과도기 실행은 실패 포함 | D5를 현 runtime gate로 재평가 후 확정 |
+| B003/F003 runtime 실험 | 폐기 | 동시성 6·짧은 timeout에서 대량 502/504 | 다음 후보는 동시성 4 단독 실험 |
 
 관련 기록:
 
@@ -62,3 +63,5 @@ Y2는 요청 성공률을 높이려다 요청 점유 시간을 늘리고 처리 
 - [coverage-v2 방법론](METHODOLOGY.md)
 - [B002 32개 평가](candidates/B002.md)
 - [F002 32개 평가](candidates/F002.md)
+- [B003 runtime 실패](candidates/B003.md)
+- [F003 runtime 실패](candidates/F003.md)

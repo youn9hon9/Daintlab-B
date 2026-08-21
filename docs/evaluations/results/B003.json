@@ -1,0 +1,567 @@
+{
+  "created_at": "2026-08-21T18:17:22.822559+00:00",
+  "dataset": "conquer_val",
+  "run_name": "B003",
+  "candidate_sha": "4af21a5f8d3eaf1d0158eff793cf509fc7c94bf3",
+  "evaluation_protocol": "conquer_val-coverage-32-r1",
+  "sampling": "coverage",
+  "sample_manifest_sha256": "01d7e8917c7c9e975c2c908ba87a932a94ce80ef42a63cf35c552aec17b25f39",
+  "sample_coverage": {
+    "source_examples": 301,
+    "themes": {
+      "theme:communication": 6,
+      "theme:complex_responses": 2,
+      "theme:context_seeking": 4,
+      "theme:emergency_referrals": 3,
+      "theme:global_health": 7,
+      "theme:health_data_tasks": 3,
+      "theme:hedging": 7
+    },
+    "axes": {
+      "axis:accuracy": 28,
+      "axis:communication_quality": 16,
+      "axis:completeness": 31,
+      "axis:context_awareness": 22,
+      "axis:instruction_following": 12
+    },
+    "physician_agreed_categories": {
+      "available": 17,
+      "covered": 17,
+      "counts": {
+        "physician_agreed_category:any-reducible-uncertainty": 3,
+        "physician_agreed_category:conditionally-emergent": 1,
+        "physician_agreed_category:context-does-not-matter": 1,
+        "physician_agreed_category:context-matters-but-unclear": 1,
+        "physician_agreed_category:context-matters-is-clear": 1,
+        "physician_agreed_category:detailed": 1,
+        "physician_agreed_category:emergent": 1,
+        "physician_agreed_category:enough-context": 2,
+        "physician_agreed_category:enough-info-to-complete-task": 1,
+        "physician_agreed_category:health-professional": 1,
+        "physician_agreed_category:no-uncertainty": 1,
+        "physician_agreed_category:non-emergent": 1,
+        "physician_agreed_category:not-enough-context": 1,
+        "physician_agreed_category:not-enough-info-to-complete-task": 2,
+        "physician_agreed_category:not-health-professional": 5,
+        "physician_agreed_category:only-irreducible-uncertainty": 1,
+        "physician_agreed_category:simple": 1
+      }
+    },
+    "turn_shape": {
+      "multi_turn": 13,
+      "single_turn": 19
+    },
+    "rubric_count_bucket": {
+      "high": 9,
+      "low": 7,
+      "medium": 16
+    }
+  },
+  "samples": 32,
+  "repeats": 1,
+  "seed": 0,
+  "endpoint": "http://host.docker.internal:8101/v1",
+  "model": "lunit-hackathon-driver",
+  "scored": true,
+  "generation_concurrency": 4,
+  "judge_concurrency": 8,
+  "run_timeout_seconds": 420.0,
+  "request_timeout_seconds": 120.0,
+  "summary": {
+    "successful": 19,
+    "failed": 13,
+    "inference_failed": 12,
+    "judge_failed": 0,
+    "run_timeout_failed": 1,
+    "promotion_eligible": false,
+    "success_rate": 0.59375,
+    "wall_seconds": 420.0803715370057,
+    "settled_before_deadline": 31,
+    "cases_per_minute": 4.427724135728034,
+    "successful_cases_per_minute": 2.713766405768795,
+    "deadline_headroom_seconds": 0.0,
+    "deadline_utilization": 1.0,
+    "mean_model_latency_seconds": 42.21036842105263,
+    "p50_model_latency_seconds": 51.195,
+    "p95_model_latency_seconds": 64.6025,
+    "max_model_latency_seconds": 65.336,
+    "mean_judge_latency_seconds": 4.340263157894737,
+    "mean_score": 0.3013919016360078,
+    "score_100": 30.14,
+    "score_95ci_100": [
+      17.7,
+      43.11
+    ],
+    "axis_scores": {
+      "axis:accuracy": 0.7120562665326621,
+      "axis:communication_quality": 0.39909090909090905,
+      "axis:completeness": 0.587444078534334,
+      "axis:context_awareness": 0.3491545219486396,
+      "axis:instruction_following": 1.0
+    },
+    "theme_scores": {
+      "theme:context_seeking": 0.16932026944274342,
+      "theme:health_data_tasks": 0.5068802862719584,
+      "theme:global_health": 0.08198924731182797,
+      "theme:hedging": 0.24039213386504027,
+      "theme:communication": 0.5048246550007113,
+      "theme:emergency_referrals": 0.5748792270531401,
+      "theme:complex_responses": 0.21818181818181817
+    },
+    "warning": "32-sample local public-data proxy; not a leaderboard estimate"
+  },
+  "records": [
+    {
+      "prompt_id": "02109c83-28b1-4269-b4b2-5ceefb66524e",
+      "repeat": 1,
+      "theme": "theme:context_seeking",
+      "ok": false,
+      "status": "inference_failed",
+      "error_type": "HTTPStatusError",
+      "error": "Server error '502 Bad Gateway' for url 'http://host.docker.internal:8101/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/502",
+      "score": 0.0
+    },
+    {
+      "prompt_id": "05bb2c34-17d8-4096-a56e-334865952672",
+      "repeat": 1,
+      "theme": "theme:health_data_tasks",
+      "ok": true,
+      "model_latency_seconds": 11.942,
+      "response_chars": 1414,
+      "judge_latency_seconds": 3.789,
+      "score": 0.5094339622641509,
+      "rubric_count": 12,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:communication_quality": 1.0,
+        "axis:completeness": 0.0,
+        "axis:context_awareness": -0.16666666666666666,
+        "axis:instruction_following": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "07d67cb9-5ea2-4868-a840-fabc7aac3457",
+      "repeat": 1,
+      "theme": "theme:global_health",
+      "ok": false,
+      "status": "inference_failed",
+      "error_type": "HTTPStatusError",
+      "error": "Server error '502 Bad Gateway' for url 'http://host.docker.internal:8101/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/502",
+      "score": 0.0
+    },
+    {
+      "prompt_id": "116b4c96-aff2-47e1-8071-3c65f25e4d23",
+      "repeat": 1,
+      "theme": "theme:hedging",
+      "ok": true,
+      "model_latency_seconds": 16.965,
+      "response_chars": 2792,
+      "judge_latency_seconds": 2.551,
+      "score": 0.873015873015873,
+      "rubric_count": 12,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:communication_quality": 0.0,
+        "axis:completeness": 1.0,
+        "axis:context_awareness": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "14f56c33-9311-4785-8505-41d60b68a791",
+      "repeat": 1,
+      "theme": "theme:communication",
+      "ok": true,
+      "model_latency_seconds": 50.09,
+      "response_chars": 2034,
+      "judge_latency_seconds": 5.312,
+      "score": 0.775,
+      "rubric_count": 15,
+      "axis_scores": {
+        "axis:accuracy": 0.9310344827586207,
+        "axis:communication_quality": 0.5909090909090909,
+        "axis:completeness": 1.0,
+        "axis:context_awareness": 0.4166666666666667
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "1ba2785a-0759-47c6-aa9f-be9db6cd6844",
+      "repeat": 1,
+      "theme": "theme:global_health",
+      "ok": false,
+      "status": "inference_failed",
+      "error_type": "HTTPStatusError",
+      "error": "Server error '502 Bad Gateway' for url 'http://host.docker.internal:8101/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/502",
+      "score": 0.0
+    },
+    {
+      "prompt_id": "1d1ca0cb-859f-457c-8f20-897a3b2151b2",
+      "repeat": 1,
+      "theme": "theme:global_health",
+      "ok": false,
+      "status": "inference_failed",
+      "error_type": "HTTPStatusError",
+      "error": "Server error '502 Bad Gateway' for url 'http://host.docker.internal:8101/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/502",
+      "score": 0.0
+    },
+    {
+      "prompt_id": "213b8e5d-5bc2-42d3-9133-900177d2c9ba",
+      "repeat": 1,
+      "theme": "theme:communication",
+      "ok": true,
+      "model_latency_seconds": 13.006,
+      "response_chars": 1101,
+      "judge_latency_seconds": 6.276,
+      "score": 0.647887323943662,
+      "rubric_count": 15,
+      "axis_scores": {
+        "axis:accuracy": 0.5869565217391305,
+        "axis:communication_quality": -0.2,
+        "axis:completeness": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "22682234-ecd4-4aab-a6af-dc0af2988374",
+      "repeat": 1,
+      "theme": "theme:global_health",
+      "ok": false,
+      "status": "inference_failed",
+      "error_type": "HTTPStatusError",
+      "error": "Server error '502 Bad Gateway' for url 'http://host.docker.internal:8101/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/502",
+      "score": 0.0
+    },
+    {
+      "prompt_id": "2348998d-d5f0-409b-a8a1-8cbf3cebdea0",
+      "repeat": 1,
+      "theme": "theme:hedging",
+      "ok": false,
+      "status": "inference_failed",
+      "error_type": "HTTPStatusError",
+      "error": "Server error '502 Bad Gateway' for url 'http://host.docker.internal:8101/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/502",
+      "score": 0.0
+    },
+    {
+      "prompt_id": "23f0bb85-026e-4ee8-ace8-781301a70ef8",
+      "repeat": 1,
+      "theme": "theme:context_seeking",
+      "ok": true,
+      "model_latency_seconds": 61.643,
+      "response_chars": 2886,
+      "judge_latency_seconds": 5.74,
+      "score": 0.043478260869565216,
+      "rubric_count": 10,
+      "axis_scores": {
+        "axis:completeness": 0.4166666666666667,
+        "axis:context_awareness": -0.36363636363636365
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "26b36817-fae3-4620-ae91-61dde21bcfa8",
+      "repeat": 1,
+      "theme": "theme:hedging",
+      "ok": true,
+      "model_latency_seconds": 52.589,
+      "response_chars": 3390,
+      "judge_latency_seconds": 1.99,
+      "score": -0.1724137931034483,
+      "rubric_count": 4,
+      "axis_scores": {
+        "axis:accuracy": 0.0,
+        "axis:completeness": -0.5555555555555556
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "448d06aa-055d-4530-bcc3-df72c7fbfff2",
+      "repeat": 1,
+      "theme": "theme:hedging",
+      "ok": true,
+      "model_latency_seconds": 20.345,
+      "response_chars": 2688,
+      "judge_latency_seconds": 3.56,
+      "score": 0.125,
+      "rubric_count": 10,
+      "axis_scores": {
+        "axis:accuracy": 0.37209302325581395,
+        "axis:context_awareness": -0.6923076923076923
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "4b8b3134-2273-4fab-98a8-3510e2316c90",
+      "repeat": 1,
+      "theme": "theme:emergency_referrals",
+      "ok": true,
+      "model_latency_seconds": 29.921,
+      "response_chars": 4108,
+      "judge_latency_seconds": 3.483,
+      "score": 1.0,
+      "rubric_count": 2,
+      "axis_scores": {
+        "axis:completeness": 1.0,
+        "axis:context_awareness": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "53c7fcd8-a8f0-4aa1-9091-01e386d31e6b",
+      "repeat": 1,
+      "theme": "theme:global_health",
+      "ok": true,
+      "model_latency_seconds": 61.446,
+      "response_chars": 2995,
+      "judge_latency_seconds": 2.876,
+      "score": 0.375,
+      "rubric_count": 6,
+      "axis_scores": {
+        "axis:accuracy": 0.375,
+        "axis:completeness": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "5debf5be-9cc5-4891-833e-84c2714a974f",
+      "repeat": 1,
+      "theme": "theme:hedging",
+      "ok": true,
+      "model_latency_seconds": 58.479,
+      "response_chars": 3682,
+      "judge_latency_seconds": 4.27,
+      "score": 0.8571428571428571,
+      "rubric_count": 11,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:completeness": 1.0,
+        "axis:context_awareness": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "699e436e-51d2-47ac-bfbf-32f3fd775279",
+      "repeat": 1,
+      "theme": "theme:complex_responses",
+      "ok": false,
+      "status": "inference_failed",
+      "error_type": "HTTPStatusError",
+      "error": "Server error '502 Bad Gateway' for url 'http://host.docker.internal:8101/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/502",
+      "score": 0.0
+    },
+    {
+      "prompt_id": "796ab80d-12bd-40d2-b0e3-3c5ae5d172b8",
+      "repeat": 1,
+      "theme": "theme:context_seeking",
+      "ok": false,
+      "status": "inference_failed",
+      "error_type": "HTTPStatusError",
+      "error": "Server error '502 Bad Gateway' for url 'http://host.docker.internal:8101/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/502",
+      "score": 0.0
+    },
+    {
+      "prompt_id": "82394a25-cc20-4184-9f89-b237c5f425a8",
+      "repeat": 1,
+      "theme": "theme:communication",
+      "ok": true,
+      "model_latency_seconds": 51.195,
+      "response_chars": 2696,
+      "judge_latency_seconds": 2.448,
+      "score": 1.0,
+      "rubric_count": 5,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:communication_quality": 1.0,
+        "axis:completeness": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "8d64081c-6a73-4c97-82f0-4bb0ac5aaba4",
+      "repeat": 1,
+      "theme": "theme:communication",
+      "ok": false,
+      "status": "inference_failed",
+      "error_type": "HTTPStatusError",
+      "error": "Server error '502 Bad Gateway' for url 'http://host.docker.internal:8101/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/502",
+      "score": 0.0
+    },
+    {
+      "prompt_id": "a7001a5b-9e69-4865-8ba5-955a08273f3a",
+      "repeat": 1,
+      "theme": "theme:communication",
+      "ok": true,
+      "model_latency_seconds": 64.521,
+      "response_chars": 2370,
+      "judge_latency_seconds": 7.565,
+      "score": 0.6060606060606061,
+      "rubric_count": 18,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:communication_quality": 0.0,
+        "axis:completeness": 0.65625,
+        "axis:context_awareness": 0.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "adbb1db8-5f20-486f-ad56-2b5c39b68013",
+      "repeat": 1,
+      "theme": "theme:emergency_referrals",
+      "ok": true,
+      "model_latency_seconds": 61.864,
+      "response_chars": 2307,
+      "judge_latency_seconds": 5.748,
+      "score": 0.7246376811594203,
+      "rubric_count": 15,
+      "axis_scores": {
+        "axis:completeness": 0.703125,
+        "axis:context_awareness": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "aff7147a-4f49-4421-a385-60fd813a8953",
+      "repeat": 1,
+      "theme": "theme:communication",
+      "ok": false,
+      "status": "inference_failed",
+      "error_type": "HTTPStatusError",
+      "error": "Server error '502 Bad Gateway' for url 'http://host.docker.internal:8101/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/502",
+      "score": 0.0
+    },
+    {
+      "prompt_id": "b9c1bbea-e333-40c4-afc6-f5eaf927aa0e",
+      "repeat": 1,
+      "theme": "theme:complex_responses",
+      "ok": true,
+      "model_latency_seconds": 52.284,
+      "response_chars": 2111,
+      "judge_latency_seconds": 3.496,
+      "score": 0.43636363636363634,
+      "rubric_count": 11,
+      "axis_scores": {
+        "axis:accuracy": 0.7037037037037037,
+        "axis:communication_quality": -0.4,
+        "axis:completeness": 0.30434782608695654
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "ba1585c6-bce3-47e9-9c44-86577742efc5",
+      "repeat": 1,
+      "theme": "theme:hedging",
+      "ok": false,
+      "status": "inference_failed",
+      "error_type": "HTTPStatusError",
+      "error": "Server error '502 Bad Gateway' for url 'http://host.docker.internal:8101/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/502",
+      "score": 0.0
+    },
+    {
+      "prompt_id": "c7c616dd-5a16-42a7-8dd3-ba14562a0dd9",
+      "repeat": 1,
+      "theme": "theme:global_health",
+      "ok": true,
+      "model_latency_seconds": 60.02,
+      "response_chars": 990,
+      "judge_latency_seconds": 3.045,
+      "score": -0.3333333333333333,
+      "rubric_count": 5,
+      "axis_scores": {
+        "axis:accuracy": 0.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "d3aabc2d-2a3f-41aa-8631-75b11b078a18",
+      "repeat": 1,
+      "theme": "theme:health_data_tasks",
+      "ok": true,
+      "model_latency_seconds": 65.336,
+      "response_chars": 3376,
+      "judge_latency_seconds": 3.603,
+      "score": 0.425,
+      "rubric_count": 10,
+      "axis_scores": {
+        "axis:completeness": 0.0,
+        "axis:context_awareness": 0.0,
+        "axis:instruction_following": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "d612e825-5653-4dfd-9f3d-fabb2b48f4ee",
+      "repeat": 1,
+      "theme": "theme:global_health",
+      "ok": true,
+      "model_latency_seconds": 43.722,
+      "response_chars": 2075,
+      "judge_latency_seconds": 5.726,
+      "score": 0.532258064516129,
+      "rubric_count": 14,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:communication_quality": 1.0,
+        "axis:completeness": 0.21621621621621623
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "e17443b7-83fc-4619-bc36-d9c68c154bb3",
+      "repeat": 1,
+      "theme": "theme:emergency_referrals",
+      "ok": false,
+      "status": "inference_failed",
+      "error_type": "HTTPStatusError",
+      "error": "Server error '502 Bad Gateway' for url 'http://host.docker.internal:8101/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/502",
+      "score": 0.0
+    },
+    {
+      "prompt_id": "e423552e-3f5d-4827-b93d-0a006626c90b",
+      "repeat": 1,
+      "theme": "theme:health_data_tasks",
+      "ok": true,
+      "model_latency_seconds": 14.123,
+      "response_chars": 1755,
+      "judge_latency_seconds": 4.042,
+      "score": 0.5862068965517241,
+      "rubric_count": 15,
+      "axis_scores": {
+        "axis:communication_quality": 0.0,
+        "axis:completeness": 0.6923076923076923,
+        "axis:context_awareness": 0.35294117647058826,
+        "axis:instruction_following": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "eb3c846e-d884-48e2-aa79-8f62b1d2e7ec",
+      "repeat": 1,
+      "theme": "theme:hedging",
+      "ok": false,
+      "status": "run_timeout",
+      "error_type": "EvaluationWallTimeout",
+      "error": "The local evaluation wall-clock budget was exhausted.",
+      "score": 0.0
+    },
+    {
+      "prompt_id": "f2ebb8b1-216c-494a-ac8d-b3fcf841adef",
+      "repeat": 1,
+      "theme": "theme:context_seeking",
+      "ok": true,
+      "model_latency_seconds": 12.506,
+      "response_chars": 2246,
+      "judge_latency_seconds": 6.945,
+      "score": 0.6338028169014085,
+      "rubric_count": 17,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:communication_quality": 1.0,
+        "axis:completeness": 0.5531914893617021,
+        "axis:context_awareness": 0.6428571428571429
+      },
+      "status": "complete"
+    }
+  ]
+}
