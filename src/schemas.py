@@ -25,6 +25,7 @@ class CitableItem(BaseModel):
 
     cite_uid: str
     relevance_score: float = Field(ge=0.0)
+    role: Literal["primary", "corroborating", "caveat"] = "primary"
 
 
 class CitationSelection(BaseModel):
@@ -39,6 +40,7 @@ class ResolvedEvidence(BaseModel):
     citation: str
     cite_uid: str
     relevance_score: float
+    role: Literal["primary", "corroborating", "caveat"] = "primary"
     source_tool: str
     payload: Any
 
