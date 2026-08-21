@@ -9,5 +9,4 @@ def _load(name: str) -> str:
 
 
 GENERATION_SYSTEM_PROMPT = _load("generation.md")
-RETRIEVAL_SYSTEM_PROMPT = _load("retrieval.md")
 

@@ -7,29 +7,21 @@ from collections.abc import Callable
 from typing import Any
 
 from src.config import Settings
+from src.deterministic_router import build_query, classify_route
 from src.errors import UpstreamProtocolError
+from src.evidence_compiler import compile_evidence
 from src.guidance import assess_response_guidance
 from src.mcp_gateway import MCPGateway
 from src.model_client import LunitModelClient
 from src.prompts import GENERATION_SYSTEM_PROMPT
 from src.readability import assess_readability
-from src.retrieval import RetrievalRunner
-from src.routing import should_offer_retrieval
 from src.safety import assess_risk
-from src.schemas import InputMessage, RetrievalEnvelope
+from src.schemas import EvidencePacket, InputMessage
+from src.tooling import validated_tool_calls
 from src.validation import (
     assess_citation_grounding,
     remove_unknown_citations,
     validate_answer,
-)
-from src.tooling import (
-    RETRIEVE_TOOL,
-    assistant_message_for_history,
-    parse_tool_arguments,
-    tool_call_name,
-    tool_error_content,
-    tool_result_message,
-    validated_tool_calls,
 )
 
 
@@ -37,6 +29,15 @@ logger = logging.getLogger(__name__)
 
 
 class Driver:
+    """F010: deterministic router + evidence compiler + exactly one L2 call.
+
+    The old Generation-L2 -> Retrieval-L2 -> final-L2 loop (src/retrieval.py,
+    RETRIEVE_TOOL/FINALIZE_TOOL) is gone. Routing, query construction, tool
+    selection, and evidence compaction are all decided by harness code
+    before the single L2 call; L2 only writes the final natural-language
+    answer, offered no tools at all.
+    """
+
     def __init__(
         self,
         settings: Settings,
@@ -55,239 +56,49 @@ class Driver:
             max(0.01, self.settings.request_timeout_seconds * 0.01),
         )
         request_deadline = (
-            started
-            + self.settings.request_timeout_seconds
-            - deadline_safety
+            started + self.settings.request_timeout_seconds - deadline_safety
         )
-        initial_retry_deadline = (
-            request_deadline
-            - self.settings.final_generation_reserve_seconds
-        )
+
         assessment = assess_risk(history)
         guidance = assess_response_guidance(history, assessment)
-        # F007 ablation: F006 and B006 independently found that RAG attempts
-        # almost always exhaust the retrieval budget and fall back to
-        # no_evidence with no usable citation (F006: 2-3/32 RAG entries, all
-        # timed out; B006: 15-19/32, virtually all timed out). Before
-        # investing in a narrower/faster retrieval strategy, this version
-        # measures whether the retrieval path is net-positive at all by
-        # disabling it outright. should_offer_retrieval's keyword gate stays
-        # untouched and is still evaluated (but not acted on) so telemetry
-        # shows how often the old gate would have fired, to inform F008.
-        would_offer_retrieval = should_offer_retrieval(history)
-        if would_offer_retrieval:
-            logger.info("retrieval_gate_suppressed reason=f007_ablation")
-        retrieval_allowed = False
+        route = classify_route(history)
+
+        evidence_packet = await self._compile_evidence_if_needed(
+            route, history, request_deadline, loop
+        )
+
         conversation = [message.model_dump() for message in history]
+        payload: dict[str, Any] = {
+            "conversation": conversation,
+            "risk_flags": assessment.model_dump(mode="json"),
+            "response_guidance": guidance.model_dump(mode="json"),
+        }
+        if evidence_packet is not None:
+            payload["evidence"] = evidence_packet.model_dump(mode="json")
+
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": GENERATION_SYSTEM_PROMPT},
             {
                 "role": "user",
                 "content": json.dumps(
-                    {
-                        "conversation": conversation,
-                        "risk_flags": assessment.model_dump(mode="json"),
-                        "response_guidance": guidance.model_dump(mode="json"),
-                    },
-                    ensure_ascii=False,
-                    separators=(",", ":"),
+                    payload, ensure_ascii=False, separators=(",", ":")
                 ),
             },
         ]
-        retrieval_count = 0
-        final_content: str | None = None
-        last_envelope: RetrievalEnvelope | None = None
 
-        for generation_round in range(self.settings.max_generation_rounds):
-            final_phase = retrieval_count > 0
-            if final_phase:
-                final_budget = request_deadline - loop.time()
-                if final_budget <= 0:
-                    logger.warning(
-                        "generation_timed_out phase=final reason=no_budget"
-                    )
-                    raise TimeoutError
-                try:
-                    async with asyncio.timeout(final_budget):
-                        assistant = await self.model_client.chat(
-                            messages,
-                            phase="final",
-                            max_retries=1,
-                            retry_deadline=request_deadline,
-                        )
-                except TimeoutError:
-                    logger.warning(
-                        "generation_timed_out phase=final budget_seconds=%s",
-                        round(final_budget, 3),
-                    )
-                    raise
-            else:
-                assistant = await self.model_client.chat(
-                    messages,
-                    tools=[RETRIEVE_TOOL] if retrieval_allowed else None,
-                    phase="initial",
-                    retry_deadline=initial_retry_deadline,
-                )
-            calls = validated_tool_calls(assistant)
-            if final_phase and calls:
-                raise UpstreamProtocolError(
-                    "Lunit FM attempted a tool call during final generation"
-                )
-            if not calls:
-                content = assistant.get("content")
-                if isinstance(content, str) and content.strip():
-                    logger.info(
-                        "generation_complete route=%s generation_rounds=%s "
-                        "retrievals=%s",
-                        "direct" if retrieval_count == 0 else "rag",
-                        generation_round + 1,
-                        retrieval_count,
-                    )
-                    final_content = content.strip()
-                    break
-                raise UpstreamProtocolError(
-                    "Lunit FM returned neither text nor tool calls"
-                )
+        final_content = await self._generate_once(
+            messages, request_deadline, loop
+        )
+        logger.info(
+            "generation_complete route=%s l2_calls=1 evidence_items=%s",
+            route,
+            len(evidence_packet.items) if evidence_packet else 0,
+        )
 
-            messages.append(assistant_message_for_history(assistant))
-            for call in calls:
-                name = tool_call_name(call)
-                if name != "retrieve_relevant_content":
-                    self._append_tool_result(
-                        messages,
-                        call,
-                        name or "unknown_tool",
-                        tool_error_content(
-                            "Generation may only call retrieve_relevant_content."
-                        ),
-                    )
-                    continue
-
-                try:
-                    arguments = parse_tool_arguments(call)
-                    query = arguments.get("query")
-                    if not isinstance(query, str) or not query.strip():
-                        raise ValueError("query must be a non-empty string")
-                except (ValueError, json.JSONDecodeError) as exc:
-                    self._append_tool_result(
-                        messages,
-                        call,
-                        name,
-                        tool_error_content(f"Invalid retrieval query: {exc}"),
-                    )
-                    continue
-
-                if retrieval_count >= self.settings.max_retrievals_per_answer:
-                    self._append_tool_result(
-                        messages,
-                        call,
-                        name,
-                        tool_error_content(
-                            "Retrieval budget for this answer is exhausted."
-                        ),
-                    )
-                    continue
-
-                retrieval_count += 1
-                runner = RetrievalRunner(
-                    self.settings,
-                    self.model_client,
-                    gateway_factory=self.gateway_factory,
-                )
-                retrieval_started = loop.time()
-                elapsed = loop.time() - started
-                available = (
-                    self.settings.request_timeout_seconds
-                    - elapsed
-                    - self.settings.final_generation_reserve_seconds
-                    - deadline_safety
-                )
-                retrieval_budget = min(
-                    self.settings.retrieval_timeout_seconds,
-                    available,
-                )
-                if retrieval_budget <= 0:
-                    logger.warning(
-                        "retrieval_skipped reason=final_generation_reserve"
-                    )
-                    envelope = RetrievalEnvelope(
-                        status="no_evidence",
-                        note=(
-                            "Retrieval was skipped to preserve time for the final "
-                            "Generation response."
-                        ),
-                    )
-                else:
-                    try:
-                        async with asyncio.timeout(retrieval_budget):
-                            envelope = await runner.run(
-                                query,
-                                deadline=loop.time() + retrieval_budget,
-                            )
-                    except TimeoutError:
-                        logger.warning(
-                            "retrieval_timed_out budget_seconds=%s",
-                            round(retrieval_budget, 3),
-                        )
-                        envelope = RetrievalEnvelope(
-                            status="no_evidence",
-                            note=(
-                                "Retrieval exceeded its time budget; answer using "
-                                "available knowledge and state important uncertainty."
-                            ),
-                        )
-                logger.info(
-                    "retrieval_complete status=%s latency_ms=%s budget_seconds=%s",
-                    envelope.status,
-                    round((loop.time() - retrieval_started) * 1000),
-                    round(max(0.0, retrieval_budget), 3),
-                )
-                last_envelope = envelope
-                self._append_tool_result(
-                    messages,
-                    call,
-                    name,
-                    envelope.model_dump_json(exclude_none=True),
-                )
-        else:
-            raise UpstreamProtocolError(
-                "Lunit FM did not produce a final answer within the round budget"
+        if evidence_packet is not None and evidence_packet.items:
+            final_content = self._validate_citations(
+                final_content, evidence_packet
             )
-
-        if final_content is None:
-            raise UpstreamProtocolError("Lunit FM returned no final answer")
-
-        if last_envelope is not None:
-            result = validate_answer(
-                final_content, last_envelope.evidence, last_envelope.status
-            )
-            if result.unknown_citations:
-                final_content = remove_unknown_citations(final_content, result)
-                logger.warning(
-                    "unknown_citations_removed count=%s",
-                    len(result.unknown_citations),
-                )
-            if result.missing_citation_despite_evidence:
-                logger.warning("citation_missing repair_skipped=latency_policy")
-
-            grounding_checks = assess_citation_grounding(
-                final_content, last_envelope.evidence
-            )
-            if grounding_checks:
-                low_grounding = [c for c in grounding_checks if c.low_grounding]
-                logger.info(
-                    "citation_grounding_checked citations=%s low_grounding=%s "
-                    "min_overlap=%s",
-                    len(grounding_checks),
-                    len(low_grounding),
-                    min(c.overlap_ratio for c in grounding_checks),
-                )
-                for check in low_grounding:
-                    logger.warning(
-                        "citation_grounding_low citation=%s overlap_ratio=%s",
-                        check.citation,
-                        check.overlap_ratio,
-                    )
 
         readability = assess_readability(final_content)
         logger.info(
@@ -300,17 +111,129 @@ class Driver:
 
         return final_content
 
-    @staticmethod
-    def _append_tool_result(
-        messages: list[dict[str, Any]],
-        call: dict[str, Any],
-        name: str,
-        content: str,
-    ) -> None:
+    async def _compile_evidence_if_needed(
+        self,
+        route: str,
+        history: list[InputMessage],
+        request_deadline: float,
+        loop: asyncio.AbstractEventLoop,
+    ) -> EvidencePacket | None:
+        if route == "direct":
+            return None
+
+        available = (
+            request_deadline
+            - loop.time()
+            - self.settings.final_generation_reserve_seconds
+        )
+        evidence_budget = min(
+            self.settings.evidence_compiler_timeout_seconds, available
+        )
+        if evidence_budget <= 0:
+            logger.warning(
+                "evidence_compiler_skipped reason=final_generation_reserve "
+                "route=%s",
+                route,
+            )
+            return None
+
+        query = build_query(history)
+        evidence_started = loop.time()
+        evidence_packet: EvidencePacket | None = None
         try:
-            messages.append(tool_result_message(call, name, content))
-        except ValueError as exc:
-            raise UpstreamProtocolError("Lunit FM tool call has no id") from exc
+            async with asyncio.timeout(evidence_budget):
+                evidence_packet = await compile_evidence(
+                    route,
+                    query,
+                    self.settings,
+                    gateway_factory=self.gateway_factory,
+                )
+        except TimeoutError:
+            logger.warning(
+                "evidence_compiler_timed_out route=%s budget_seconds=%s",
+                route,
+                round(evidence_budget, 3),
+            )
+        logger.info(
+            "evidence_compiler_complete route=%s status=%s items=%s "
+            "latency_ms=%s",
+            route,
+            evidence_packet.status if evidence_packet else "no_evidence",
+            len(evidence_packet.items) if evidence_packet else 0,
+            round((loop.time() - evidence_started) * 1000),
+        )
+        return evidence_packet
+
+    async def _generate_once(
+        self,
+        messages: list[dict[str, Any]],
+        request_deadline: float,
+        loop: asyncio.AbstractEventLoop,
+    ) -> str:
+        remaining = request_deadline - loop.time()
+        if remaining <= 0:
+            logger.warning("generation_timed_out phase=initial reason=no_budget")
+            raise TimeoutError
+        try:
+            async with asyncio.timeout(remaining):
+                # F010: no tools offered, and no retry -- a ~50s upstream
+                # timeout repeated on retry could exceed the whole request
+                # budget for a single, already-precious L2 call.
+                assistant = await self.model_client.chat(
+                    messages,
+                    phase="initial",
+                    max_retries=0,
+                )
+        except TimeoutError:
+            logger.warning(
+                "generation_timed_out phase=initial budget_seconds=%s",
+                round(remaining, 3),
+            )
+            raise
+
+        calls = validated_tool_calls(assistant)
+        if calls:
+            raise UpstreamProtocolError(
+                "Lunit FM attempted a tool call but no tools were offered"
+            )
+        content = assistant.get("content")
+        if not isinstance(content, str) or not content.strip():
+            raise UpstreamProtocolError("Lunit FM returned no content")
+        return content.strip()
+
+    @staticmethod
+    def _validate_citations(
+        final_content: str, evidence_packet: EvidencePacket
+    ) -> str:
+        result = validate_answer(final_content, evidence_packet.items)
+        if result.unknown_citations:
+            final_content = remove_unknown_citations(final_content, result)
+            logger.warning(
+                "unknown_citations_removed count=%s",
+                len(result.unknown_citations),
+            )
+        if result.missing_citation_despite_evidence:
+            logger.warning("citation_missing repair_skipped=latency_policy")
+
+        grounding_checks = assess_citation_grounding(
+            final_content, evidence_packet.items
+        )
+        if grounding_checks:
+            low_grounding = [c for c in grounding_checks if c.low_grounding]
+            logger.info(
+                "citation_grounding_checked citations=%s low_grounding=%s "
+                "min_overlap=%s",
+                len(grounding_checks),
+                len(low_grounding),
+                min(c.overlap_ratio for c in grounding_checks),
+            )
+            for check in low_grounding:
+                logger.warning(
+                    "citation_grounding_low citation=%s overlap_ratio=%s",
+                    check.citation,
+                    check.overlap_ratio,
+                )
+        return final_content
 
     async def aclose(self) -> None:
         close = getattr(self.model_client, "aclose", None)

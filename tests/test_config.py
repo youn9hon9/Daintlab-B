@@ -18,32 +18,23 @@ class SettingsTest(unittest.TestCase):
 
         self.assertEqual(settings.upstream_timeout_seconds, 50.0)
         self.assertEqual(settings.request_timeout_seconds, 120.0)
-        self.assertEqual(settings.retrieval_timeout_seconds, 40.0)
         self.assertEqual(settings.final_generation_reserve_seconds, 50.0)
-        self.assertEqual(settings.mcp_tool_timeout_seconds, 18.0)
+        self.assertEqual(settings.mcp_tool_timeout_seconds, 6.0)
         self.assertFalse(settings.mcp_terminate_on_close)
-        self.assertEqual(settings.upstream_retries, 1)
+        self.assertEqual(settings.upstream_retries, 0)
         self.assertEqual(settings.upstream_concurrency, 4)
-        self.assertEqual(settings.upstream_priority_slots, 1)
-        self.assertEqual(settings.max_retrievals_per_answer, 1)
-        self.assertEqual(settings.max_retrieval_model_rounds, 4)
-        self.assertEqual(settings.max_retrieval_mcp_calls, 2)
+        self.assertEqual(settings.upstream_priority_slots, 0)
         self.assertEqual(settings.max_mcp_result_chars, 8_000)
-        self.assertEqual(settings.max_retrieval_context_chars, 12_000)
-        self.assertEqual(settings.max_evidence_chars, 10_000)
-        self.assertEqual(settings.max_selected_evidence, 2)
+        self.assertEqual(settings.evidence_compiler_timeout_seconds, 10.0)
         self.assertEqual(settings.max_tokens_answer, 1024)
-        self.assertEqual(settings.max_tokens_retrieval, 512)
 
     def test_runtime_budget_environment_is_ignored(self) -> None:
         with patch.dict(
             os.environ,
             {
                 "REQUEST_TIMEOUT_SECONDS": "1",
-                "RETRIEVAL_TIMEOUT_SECONDS": "1",
                 "UPSTREAM_CONCURRENCY": "1",
-                "MAX_RETRIEVAL_MCP_CALLS": "99",
-                "MAX_SELECTED_EVIDENCE": "99",
+                "UPSTREAM_RETRIES": "9",
                 "MAX_TOKENS_ANSWER": "8",
                 "MCP_TERMINATE_ON_CLOSE": "true",
             },
@@ -52,10 +43,8 @@ class SettingsTest(unittest.TestCase):
             settings = Settings.from_env()
 
         self.assertEqual(settings.request_timeout_seconds, 120.0)
-        self.assertEqual(settings.retrieval_timeout_seconds, 40.0)
         self.assertEqual(settings.upstream_concurrency, 4)
-        self.assertEqual(settings.max_retrieval_mcp_calls, 2)
-        self.assertEqual(settings.max_selected_evidence, 2)
+        self.assertEqual(settings.upstream_retries, 0)
         self.assertEqual(settings.max_tokens_answer, 1024)
         self.assertFalse(settings.mcp_terminate_on_close)
 

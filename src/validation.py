@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any
-from src.schemas import ResolvedEvidence
+from src.schemas import CompiledEvidenceItem
 
 
 _CITATION_PATTERN = re.compile(r"\[(\d+)\]")
@@ -30,7 +29,7 @@ class GroundingCheck:
 
 
 def validate_answer(
-    content: str, evidence: list[ResolvedEvidence], status: str
+    content: str, evidence: list[CompiledEvidenceItem]
 ) -> CitationValidationResult:
     used_labels = {f"[{n}]" for n in _CITATION_PATTERN.findall(content)}
     valid_labels = {item.citation for item in evidence}
@@ -38,7 +37,7 @@ def validate_answer(
         used_labels - valid_labels,
         key=lambda label: int(label.strip("[]")),
     )
-    missing = status in ("sufficient", "partial") and bool(evidence) and not used_labels
+    missing = bool(evidence) and not used_labels
     return CitationValidationResult(
         unknown_citations=unknown,
         missing_citation_despite_evidence=missing,
@@ -62,25 +61,8 @@ def _char_ngrams(text: str, n: int = _GROUNDING_NGRAM_SIZE) -> set[str]:
     return {normalized[i : i + n] for i in range(len(normalized) - n + 1)}
 
 
-def _flatten_text(value: Any) -> str:
-    parts: list[str] = []
-
-    def walk(current: Any) -> None:
-        if isinstance(current, dict):
-            for child in current.values():
-                walk(child)
-        elif isinstance(current, list):
-            for child in current:
-                walk(child)
-        elif isinstance(current, str):
-            parts.append(current)
-
-    walk(value)
-    return " ".join(parts)
-
-
 def assess_citation_grounding(
-    content: str, evidence: list[ResolvedEvidence]
+    content: str, evidence: list[CompiledEvidenceItem]
 ) -> list[GroundingCheck]:
     """Observation-only lexical overlap between each cited claim and its evidence.
 
@@ -94,7 +76,7 @@ def assess_citation_grounding(
     """
     if not evidence:
         return []
-    evidence_text = {item.citation: _flatten_text(item.payload) for item in evidence}
+    evidence_text = {item.citation: item.excerpt for item in evidence}
     checks: list[GroundingCheck] = []
     for sentence in _SENTENCE_BOUNDARY.split(content):
         labels = _CITATION_PATTERN.findall(sentence)

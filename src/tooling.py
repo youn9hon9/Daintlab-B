@@ -1,119 +1,19 @@
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from src.errors import UpstreamProtocolError
 
 
-RETRIEVE_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "retrieve_relevant_content",
-        "description": (
-            "Retrieve external evidence only when an exact guideline, current "
-            "drug approval or safety fact, law, coverage rule, or explicit source "
-            "is required. Make at most one retrieval request per answer. The query "
-            "must be a single, self-contained question preserving all relevant "
-            "patient conditions and jurisdiction or date constraints."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "minLength": 1},
-            },
-            "required": ["query"],
-            "additionalProperties": False,
-        },
-    },
-}
-
-
-FINALIZE_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "finalize_retrieval",
-        "description": (
-            "Submit the final citation selection and end the retrieval phase."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "status": {
-                    "type": "string",
-                    "enum": ["sufficient", "partial", "no_evidence"],
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "cite_uid": {"type": "string", "minLength": 1},
-                            "relevance_score": {"type": "number", "minimum": 0},
-                            "role": {
-                                "type": "string",
-                                "enum": ["primary", "corroborating", "caveat"],
-                                "description": (
-                                    "primary: most directly answers the query. "
-                                    "corroborating: an independent source that "
-                                    "confirms the primary finding. caveat: "
-                                    "contradicts, limits, or adds a safety or "
-                                    "jurisdiction constraint to the primary "
-                                    "finding. Defaults to primary if omitted."
-                                ),
-                            },
-                        },
-                        "required": ["cite_uid", "relevance_score"],
-                        "additionalProperties": False,
-                    },
-                },
-                "note": {"type": "string", "default": ""},
-            },
-            "required": ["status", "items"],
-            "additionalProperties": False,
-        },
-    },
-}
-
-
-def parse_tool_arguments(call: dict[str, Any]) -> dict[str, Any]:
-    function = call.get("function")
-    if not isinstance(function, dict):
-        raise ValueError("tool call is missing function")
-    raw = function.get("arguments", "{}")
-    if isinstance(raw, dict):
-        parsed = raw
-    elif isinstance(raw, str):
-        parsed = json.loads(raw)
-    else:
-        raise ValueError("tool arguments must be a JSON object")
-    if not isinstance(parsed, dict):
-        raise ValueError("tool arguments must decode to an object")
-    return parsed
-
-
-def tool_call_name(call: dict[str, Any]) -> str:
-    function = call.get("function")
-    if not isinstance(function, dict) or not isinstance(function.get("name"), str):
-        return ""
-    return function["name"]
-
-
-def assistant_message_for_history(message: dict[str, Any]) -> dict[str, Any]:
-    normalized: dict[str, Any] = {
-        "role": "assistant",
-        "content": message.get("content"),
-    }
-    tool_calls = message.get("tool_calls")
-    if isinstance(tool_calls, list):
-        normalized["tool_calls"] = tool_calls
-    reasoning_content = message.get("reasoning_content")
-    if isinstance(reasoning_content, str):
-        normalized["reasoning_content"] = reasoning_content
-    return normalized
-
-
 def validated_tool_calls(message: dict[str, Any]) -> list[dict[str, Any]]:
+    """Defensively validate any tool_calls L2 returns.
+
+    F010 offers no tools to L2 at all -- routing, query construction, tool
+    selection, and evidence compaction all happen in the harness before the
+    single L2 call. A well-formed tool_calls entry here would mean L2
+    attempted to call something it was never offered, which the caller
+    treats as an upstream protocol violation rather than a normal response.
+    """
     raw_calls = message.get("tool_calls")
     if raw_calls is None:
         return []
@@ -140,25 +40,3 @@ def validated_tool_calls(message: dict[str, Any]) -> list[dict[str, Any]]:
             raise UpstreamProtocolError("Unsupported Lunit FM tool call type")
         calls.append(call)
     return calls
-
-
-def tool_result_message(
-    call: dict[str, Any], name: str, content: str
-) -> dict[str, Any]:
-    call_id = call.get("id")
-    if not isinstance(call_id, str) or not call_id:
-        raise ValueError("tool call is missing id")
-    return {
-        "role": "tool",
-        "tool_call_id": call_id,
-        "name": name,
-        "content": content,
-    }
-
-
-def tool_error_content(message: str) -> str:
-    return json.dumps(
-        {"isError": True, "error": message},
-        ensure_ascii=False,
-        separators=(",", ":"),
-    )

@@ -3,14 +3,18 @@
 The active submission path is split into explicit responsibilities:
 
 - `api.py`: evaluator-facing OpenAI-compatible HTTP contract
-- `driver.py`: generation and conditional-retrieval orchestration
+- `driver.py`: F010 orchestration -- deterministic route/evidence compile,
+  then exactly one L2 call
+- `deterministic_router.py`: harness-side route classification and
+  self-contained query construction (no L2 call)
+- `evidence_compiler.py`: harness-side direct MCP tool calls and extractive
+  evidence compaction (no L2 call)
 - `guidance.py`: missing clinical context and jurisdiction guidance flags
-- `routing.py`: deterministic gate for evidence-dependent requests
-- `retrieval.py`: retrieval-model tool loop and budgets
 - `mcp_gateway.py`: Lunit MCP connection and tool execution
 - `model_client.py`: Lunit model transport, retries, and timeouts
-- `evidence.py`: citation discovery and integrity checks
-- `schemas.py`: request, evidence, and retrieval data contracts
+- `evidence.py`: cite_uid extraction helper (used by mcp_gateway.py's
+  truncation path)
+- `schemas.py`: request and evidence data contracts
 - `config.py`: environment-backed endpoints and versioned runtime budgets
 
 The repository-root `app.py` remains a thin entrypoint and the container still
