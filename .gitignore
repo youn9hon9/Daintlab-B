@@ -4,6 +4,7 @@
 !.env.example
 .lunit_api_key
 .venv/
+.worktrees/
 __pycache__/
 *.py[cod]
 .pytest_cache/

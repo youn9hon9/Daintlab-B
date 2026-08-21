@@ -9,18 +9,18 @@ from src.errors import ConfigurationError
 
 
 class SettingsTest(unittest.TestCase):
-    def test_lean_retrieval_defaults(self) -> None:
+    def test_balanced_deadline_defaults(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
             settings = Settings.from_env()
 
-        self.assertEqual(settings.upstream_timeout_seconds, 30.0)
-        self.assertEqual(settings.request_timeout_seconds, 90.0)
-        self.assertEqual(settings.retrieval_timeout_seconds, 40.0)
-        self.assertEqual(settings.final_generation_reserve_seconds, 35.0)
-        self.assertEqual(settings.mcp_tool_timeout_seconds, 20.0)
+        self.assertEqual(settings.upstream_timeout_seconds, 75.0)
+        self.assertEqual(settings.request_timeout_seconds, 170.0)
+        self.assertEqual(settings.retrieval_timeout_seconds, 65.0)
+        self.assertEqual(settings.final_generation_reserve_seconds, 75.0)
+        self.assertEqual(settings.mcp_tool_timeout_seconds, 25.0)
         self.assertFalse(settings.mcp_terminate_on_close)
         self.assertEqual(settings.upstream_retries, 1)
-        self.assertEqual(settings.upstream_concurrency, 6)
+        self.assertEqual(settings.upstream_concurrency, 2)
         self.assertEqual(settings.upstream_priority_slots, 1)
         self.assertEqual(settings.max_retrievals_per_answer, 1)
         self.assertEqual(settings.max_retrieval_model_rounds, 5)

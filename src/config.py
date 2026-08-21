@@ -91,25 +91,25 @@ class Settings:
                 "LUNIT_MCP_URL", "https://mcp.hackathon.lunit.io/mcp"
             ).strip(),
             upstream_timeout_seconds=_float_env(
-                "UPSTREAM_TIMEOUT_SECONDS", 30.0
+                "UPSTREAM_TIMEOUT_SECONDS", 75.0
             ),
             request_timeout_seconds=_float_env(
-                "REQUEST_TIMEOUT_SECONDS", 90.0
+                "REQUEST_TIMEOUT_SECONDS", 170.0
             ),
             retrieval_timeout_seconds=_float_env(
-                "RETRIEVAL_TIMEOUT_SECONDS", 40.0
+                "RETRIEVAL_TIMEOUT_SECONDS", 65.0
             ),
             final_generation_reserve_seconds=_float_env(
-                "FINAL_GENERATION_RESERVE_SECONDS", 35.0
+                "FINAL_GENERATION_RESERVE_SECONDS", 75.0
             ),
             mcp_tool_timeout_seconds=_float_env(
-                "MCP_TOOL_TIMEOUT_SECONDS", 20.0
+                "MCP_TOOL_TIMEOUT_SECONDS", 25.0
             ),
             mcp_terminate_on_close=_bool_env(
                 "MCP_TERMINATE_ON_CLOSE", False
             ),
             upstream_retries=_int_env("UPSTREAM_RETRIES", 1, minimum=0),
-            upstream_concurrency=_int_env("UPSTREAM_CONCURRENCY", 6),
+            upstream_concurrency=_int_env("UPSTREAM_CONCURRENCY", 2),
             upstream_priority_slots=_int_env(
                 "UPSTREAM_PRIORITY_SLOTS", 1, minimum=0
             ),
