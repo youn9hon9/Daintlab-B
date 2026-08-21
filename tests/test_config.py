@@ -13,54 +13,15 @@ class SettingsTest(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True):
             settings = Settings.from_env()
 
-        self.assertEqual(settings.upstream_timeout_seconds, 30.0)
-        self.assertEqual(settings.request_timeout_seconds, 90.0)
-        self.assertEqual(settings.retrieval_timeout_seconds, 40.0)
-        self.assertEqual(settings.final_generation_reserve_seconds, 35.0)
-        self.assertEqual(settings.mcp_tool_timeout_seconds, 20.0)
-        self.assertFalse(settings.mcp_terminate_on_close)
-        self.assertEqual(settings.upstream_retries, 1)
-        self.assertEqual(settings.upstream_concurrency, 6)
-        self.assertEqual(settings.upstream_priority_slots, 1)
+        self.assertEqual(settings.upstream_timeout_seconds, 60.0)
+        self.assertEqual(settings.upstream_concurrency, 2)
         self.assertEqual(settings.max_retrievals_per_answer, 1)
-        self.assertEqual(settings.max_retrieval_model_rounds, 5)
-        self.assertEqual(settings.max_retrieval_mcp_calls, 3)
-        self.assertEqual(settings.max_mcp_result_chars, 8_000)
-        self.assertEqual(settings.max_retrieval_context_chars, 20_000)
-        self.assertEqual(settings.max_evidence_chars, 16_000)
-        self.assertEqual(settings.max_selected_evidence, 2)
-
-    def test_mcp_terminate_on_close_accepts_strict_boolean_values(self) -> None:
-        accepted = {
-            "true": True,
-            "TRUE": True,
-            "1": True,
-            "yes": True,
-            " false ": False,
-            "FALSE": False,
-            "0": False,
-            "no": False,
-        }
-        for raw, expected in accepted.items():
-            with self.subTest(raw=raw):
-                with patch.dict(
-                    os.environ,
-                    {"MCP_TERMINATE_ON_CLOSE": raw},
-                    clear=True,
-                ):
-                    settings = Settings.from_env()
-                self.assertIs(settings.mcp_terminate_on_close, expected)
-
-    def test_mcp_terminate_on_close_rejects_other_values(self) -> None:
-        for raw in ("", "on", "off", "2", "maybe"):
-            with self.subTest(raw=raw):
-                with patch.dict(
-                    os.environ,
-                    {"MCP_TERMINATE_ON_CLOSE": raw},
-                    clear=True,
-                ):
-                    with self.assertRaises(ConfigurationError):
-                        Settings.from_env()
+        self.assertEqual(settings.max_retrieval_model_rounds, 6)
+        self.assertEqual(settings.max_retrieval_mcp_calls, 4)
+        self.assertEqual(settings.max_mcp_result_chars, 10_000)
+        self.assertEqual(settings.max_retrieval_context_chars, 32_000)
+        self.assertEqual(settings.max_evidence_chars, 24_000)
+        self.assertEqual(settings.max_selected_evidence, 3)
 
     def test_final_generation_reserve_must_fit_request_deadline(self) -> None:
         with patch.dict(

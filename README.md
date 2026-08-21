@@ -31,10 +31,10 @@ Evaluator messages
 - Retrieval에는 live MCP tools와 `finalize_retrieval`을 제공한다.
 - 실제 tool result에 존재하는 `cite_uid`만 최종 evidence로 전달한다.
 - 요청에 포함된 전체 대화가 source of truth이며 server-side session에 의존하지 않는다.
-- 일반 의료 질문과 closed-book MCQ·분류·계산은 L2 1회로 직접 답하고, 최신 정보나 특정 출처가 필요할 때만 Retrieval을 1회 수행한다.
-- 일반 L2 HTTP attempt는 동시에 최대 6개만 실행하고, RAG 최종 답변용 priority slot 1개를 별도로 예약하며 `Retry-After`를 반영한다.
-- Retrieval은 최대 L2 5 round·MCP 3 call·선택 evidence 2개로 제한한다.
-- 전체 90초 중 Retrieval은 최대 40초만 사용하고 최종 Generation에 35초를 예약한다.
+- 일반 의료 질문은 L2 1회로 직접 답하고, 정확한 근거가 필요할 때만 Retrieval을 1회 수행한다.
+- L2 HTTP attempt는 동시에 최대 2개만 실행하고 `Retry-After`를 반영한다.
+- Retrieval은 최대 L2 6 round·MCP 4 call·선택 evidence 3개로 제한한다.
+- 전체 180초 중 Retrieval은 최대 115초만 사용해 최종 Generation 시간을 남긴다.
 
 ## 환경변수
 
@@ -46,20 +46,6 @@ export LUNIT_MCP_URL="https://mcp.hackathon.lunit.io/mcp"
 ```
 
 전체 설정은 [.env.example](.env.example)에 있다. 실제 API key를 `.env`, Dockerfile, image, Git 또는 로그에 남기지 않는다.
-
-## CoEval fast-fail 기본값
-
-CoEval의 비동기 요청을 짧은 전체 시간 안에 처리하기 위해 다음 기본값을 사용한다.
-
-- Upstream L2 attempt 30초, 전체 request 90초, 재시도 1회
-- 일반 L2 HTTP attempt 동시성 6 + RAG 최종 답변 전용 slot 1개
-- Retrieval 40초, 최종 Generation reserve 35초, MCP tool 20초
-- MCP result 8,000자, Retrieval 누적 context 20,000자, Generation evidence 16,000자
-- Retrieval 1회, Retrieval L2 5 round, MCP 3 call, 선택 evidence 2개
-- `MCP_TERMINATE_ON_CLOSE=false`: 반복 평가에서 MCP client close 시 remote session terminate 요청을 기본으로 생략한다. MCP server가 명시적 종료를 요구하는 환경에서만 `true`로 변경한다.
-
-이 값들은 일반·closed-book 질문의 불필요한 Retrieval을 피하고, 외부 근거가 필요한 질문도 제한된 예산 안에서 종료하도록 한다. 환경변수로 변경할 때는 CoEval 전체 latency와 429·5xx 비율을 함께 확인한다.
-`UPSTREAM_CONCURRENCY`는 일반 호출 상한이고 `UPSTREAM_PRIORITY_SLOTS`는 그 위에 추가되는 최종 답변 전용 상한이므로, 기본 최대 동시 HTTP attempt는 7개다.
 
 ## 로컬 실행
 
@@ -126,7 +112,7 @@ git rev-parse lunit/hackathon-submission
 
 ## 공식 문서
 
-- [제출 가이드](guide_line/Lunit_Submission_Guide.md)
-- [L2 가이드](guide_line/Lunit_FM_L2_Guide.md)
-- [Model API 가이드](guide_line/Lunit_Model_API_Guide.md)
-- [MCP Tools 가이드](guide_line/Lunit_MCP_Tools_Guide.md)
+- [제출 가이드](docs/guides/Lunit_Submission_Guide.md)
+- [L2 가이드](docs/guides/Lunit_FM_L2_Guide.md)
+- [Model API 가이드](docs/guides/Lunit_Model_API_Guide.md)
+- [MCP Tools 가이드](docs/guides/Lunit_MCP_Tools_Guide.md)

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from collections.abc import Callable
@@ -40,10 +39,7 @@ class RetrievalRunner:
         self.gateway_factory = gateway_factory
 
     async def run(
-        self,
-        query: str,
-        *,
-        deadline: float | None = None,
+        self, query: str, *, _retried_session: bool = False
     ) -> RetrievalEnvelope:
         query = query.strip()
         if not query:
@@ -70,252 +66,197 @@ class RetrievalRunner:
         )
         seen_mcp_calls: set[tuple[str, str]] = set()
         force_finalize_next = False
-        round_index = 0
-        session_retries = 0
 
-        while round_index < self.settings.max_retrieval_model_rounds:
-            try:
-                async with self.gateway_factory(self.settings) as gateway:
-                    mcp_tools = await gateway.list_openai_tools()
-                    allowed_names = {
-                        tool["function"]["name"]
-                        for tool in mcp_tools
-                        if isinstance(tool.get("function"), dict)
-                    }
+        try:
+            async with self.gateway_factory(self.settings) as gateway:
+                mcp_tools = await gateway.list_openai_tools()
+                allowed_names = {
+                    tool["function"]["name"]
+                    for tool in mcp_tools
+                    if isinstance(tool.get("function"), dict)
+                }
 
-                    while round_index < self.settings.max_retrieval_model_rounds:
-                        current_round = round_index
-                        round_index += 1
-                        force_finalize = (
-                            force_finalize_next
-                            or mcp_call_count
-                            >= self.settings.max_retrieval_mcp_calls
-                            or context_chars_used >= context_char_limit
-                            or current_round
-                            == self.settings.max_retrieval_model_rounds - 1
-                        )
-                        tools = [FINALIZE_TOOL] if force_finalize else [
-                            *mcp_tools,
-                            FINALIZE_TOOL,
-                        ]
-                        tool_choice: dict[str, Any] | None = None
-                        if force_finalize:
-                            tool_choice = {
-                                "type": "function",
-                                "function": {"name": "finalize_retrieval"},
+                for round_index in range(
+                    self.settings.max_retrieval_model_rounds
+                ):
+                    force_finalize = (
+                        force_finalize_next
+                        or mcp_call_count
+                        >= self.settings.max_retrieval_mcp_calls
+                        or context_chars_used >= context_char_limit
+                        or round_index
+                        == self.settings.max_retrieval_model_rounds - 1
+                    )
+                    tools = [FINALIZE_TOOL] if force_finalize else [
+                        *mcp_tools,
+                        FINALIZE_TOOL,
+                    ]
+                    tool_choice: dict[str, Any] | None = None
+                    if force_finalize:
+                        tool_choice = {
+                            "type": "function",
+                            "function": {"name": "finalize_retrieval"},
+                        }
+
+                    assistant = await self.model_client.chat(
+                        messages,
+                        tools=tools,
+                        tool_choice=tool_choice,
+                    )
+                    calls = validated_tool_calls(assistant)
+                    messages.append(assistant_message_for_history(assistant))
+
+                    if not calls:
+                        messages.append(
+                            {
+                                "role": "user",
+                                "content": (
+                                    "Do not answer the user. Continue retrieval or call "
+                                    "finalize_retrieval now."
+                                ),
                             }
-
-                        assistant = await self.model_client.chat(
-                            messages,
-                            tools=tools,
-                            tool_choice=tool_choice,
-                            phase="retrieval",
-                            retry_deadline=deadline,
                         )
-                        calls = validated_tool_calls(assistant)
-                        messages.append(assistant_message_for_history(assistant))
+                        continue
 
-                        if not calls:
-                            messages.append(
-                                {
-                                    "role": "user",
-                                    "content": (
-                                        "Do not answer the user. Continue retrieval or "
-                                        "call finalize_retrieval now."
-                                    ),
-                                }
+                    for call in calls:
+                        name = tool_call_name(call)
+                        try:
+                            arguments = parse_tool_arguments(call)
+                        except (ValueError, json.JSONDecodeError) as exc:
+                            self._append_tool_error(
+                                messages,
+                                call,
+                                name or "unknown_tool",
+                                f"Invalid JSON arguments: {exc}",
                             )
                             continue
 
-                        pending_calls: list[
-                            tuple[
-                                dict[str, Any],
-                                str,
-                                dict[str, Any],
-                                tuple[str, str],
-                            ]
-                        ] = []
-                        final_selection: CitationSelection | None = None
-                        for call in calls:
-                            name = tool_call_name(call)
+                        if name == "finalize_retrieval":
                             try:
-                                arguments = parse_tool_arguments(call)
-                            except (ValueError, json.JSONDecodeError) as exc:
-                                self._append_tool_error(
-                                    messages,
-                                    call,
-                                    name or "unknown_tool",
-                                    f"Invalid JSON arguments: {exc}",
-                                )
-                                continue
-
-                            if name == "finalize_retrieval":
-                                try:
-                                    final_selection = (
-                                        CitationSelection.model_validate(arguments)
-                                    )
-                                except ValidationError as exc:
-                                    self._append_tool_error(
-                                        messages,
-                                        call,
-                                        name,
-                                        "Invalid finalize_retrieval payload: "
-                                        f"{exc.title}",
-                                    )
-                                    continue
-                                # Calls after finalize cannot depend on fresh results.
-                                break
-
-                            if name not in allowed_names:
-                                self._append_tool_error(
-                                    messages,
-                                    call,
-                                    name or "unknown_tool",
-                                    "Tool is not in the live MCP allowlist.",
-                                )
-                                continue
-
-                            if (
-                                mcp_call_count
-                                >= self.settings.max_retrieval_mcp_calls
-                            ):
+                                selection = CitationSelection.model_validate(arguments)
+                            except ValidationError as exc:
                                 self._append_tool_error(
                                     messages,
                                     call,
                                     name,
-                                    "Retrieval tool-call budget is exhausted.",
+                                    f"Invalid finalize_retrieval payload: {exc.title}",
                                 )
                                 continue
+                            return registry.resolve(selection)
 
-                            call_key = (
+                        if name not in allowed_names:
+                            self._append_tool_error(
+                                messages,
+                                call,
+                                name or "unknown_tool",
+                                "Tool is not in the live MCP allowlist.",
+                            )
+                            continue
+
+                        if (
+                            mcp_call_count
+                            >= self.settings.max_retrieval_mcp_calls
+                        ):
+                            self._append_tool_error(
+                                messages,
+                                call,
                                 name,
-                                json.dumps(
-                                    arguments,
-                                    ensure_ascii=False,
-                                    sort_keys=True,
-                                    separators=(",", ":"),
+                                "Retrieval tool-call budget is exhausted.",
+                            )
+                            continue
+
+                        call_key = (
+                            name,
+                            json.dumps(
+                                arguments,
+                                ensure_ascii=False,
+                                sort_keys=True,
+                                separators=(",", ":"),
+                            ),
+                        )
+                        if call_key in seen_mcp_calls:
+                            self._append_tool_error(
+                                messages,
+                                call,
+                                name,
+                                (
+                                    "Duplicate MCP tool call was skipped. "
+                                    "Use the existing result and finalize retrieval."
                                 ),
                             )
-                            if call_key in seen_mcp_calls:
-                                self._append_tool_error(
-                                    messages,
-                                    call,
-                                    name,
-                                    (
-                                        "Duplicate MCP tool call was skipped. Use the "
-                                        "existing result and finalize retrieval."
-                                    ),
-                                )
-                                mcp_call_count += 1
-                                force_finalize_next = True
-                                continue
-
-                            if context_chars_used >= context_char_limit:
-                                self._append_tool_error(
-                                    messages,
-                                    call,
-                                    name,
-                                    (
-                                        "Retrieval context budget is exhausted. Finalize "
-                                        "retrieval with the evidence already gathered."
-                                    ),
-                                )
-                                mcp_call_count += 1
-                                force_finalize_next = True
-                                continue
-
-                            seen_mcp_calls.add(call_key)
-                            # Reserve budget before concurrent calls start so one
-                            # assistant response cannot exceed the global cap.
                             mcp_call_count += 1
-                            pending_calls.append(
-                                (call, name, arguments, call_key)
-                            )
+                            force_finalize_next = True
+                            continue
 
-                        session_error: MCPError | None = None
-                        if pending_calls:
-                            results = await asyncio.gather(
-                                *(
-                                    gateway.call_tool(name, arguments)
-                                    for _, name, arguments, _ in pending_calls
+                        if context_chars_used >= context_char_limit:
+                            self._append_tool_error(
+                                messages,
+                                call,
+                                name,
+                                (
+                                    "Retrieval context budget is exhausted. "
+                                    "Finalize retrieval with the evidence already gathered."
                                 ),
-                                return_exceptions=True,
                             )
-                            for (call, name, _, call_key), result in zip(
-                                pending_calls, results, strict=True
-                            ):
-                                if isinstance(result, BaseException):
-                                    if (
-                                        isinstance(result, MCPError)
-                                        and "Session terminated" in str(result)
-                                    ):
-                                        session_error = result
-                                        # A reconnect may retry this exact call,
-                                        # while the failed attempt still counts
-                                        # against the global MCP budget.
-                                        seen_mcp_calls.discard(call_key)
-                                    logger.warning(
-                                        "mcp_tool_failed tool=%s error_type=%s",
-                                        name,
-                                        type(result).__name__,
-                                    )
-                                    self._append_tool_error(
-                                        messages,
-                                        call,
-                                        name,
-                                        "MCP tool failed: "
-                                        f"{type(result).__name__}",
-                                    )
-                                    continue
+                            mcp_call_count += 1
+                            force_finalize_next = True
+                            continue
 
-                                payload, content = result
-                                if payload.get("isError") is not True:
-                                    registry.capture(name, payload)
-                                remaining_context_chars = max(
-                                    0, context_char_limit - context_chars_used
-                                )
-                                content = self._bounded_context_content(
-                                    content,
-                                    payload,
-                                    remaining_context_chars,
-                                )
-                                context_chars_used += len(content)
-                                try:
-                                    messages.append(
-                                        tool_result_message(call, name, content)
-                                    )
-                                except ValueError:
-                                    logger.warning(
-                                        "mcp_tool_call_missing_id tool=%s", name
-                                    )
+                        seen_mcp_calls.add(call_key)
 
-                        if session_error is not None:
-                            raise session_error
-                        if final_selection is not None:
-                            return registry.resolve(final_selection)
+                        try:
+                            payload, content = await gateway.call_tool(
+                                name, arguments
+                            )
+                        except Exception as exc:
+                            logger.warning(
+                                "mcp_tool_failed tool=%s error_type=%s",
+                                name,
+                                type(exc).__name__,
+                            )
+                            self._append_tool_error(
+                                messages,
+                                call,
+                                name,
+                                f"MCP tool failed: {type(exc).__name__}",
+                            )
+                            mcp_call_count += 1
+                            continue
 
-            except Exception as exc:
-                if (
-                    session_retries < 1
-                    and round_index < self.settings.max_retrieval_model_rounds
-                    and isinstance(exc, MCPError)
-                    and "Session terminated" in str(exc)
-                ):
-                    session_retries += 1
-                    logger.info(
-                        "mcp_session_terminated reconnecting=true "
-                        "retrieval_round=%s mcp_calls=%s",
-                        round_index,
-                        mcp_call_count,
-                    )
-                    continue
-                logger.warning(
-                    "retrieval_failed error_type=%s", type(exc).__name__
-                )
-                return RetrievalEnvelope(
-                    status="no_evidence",
-                    note=f"Retrieval was unavailable ({type(exc).__name__}).",
-                )
+                        if payload.get("isError") is not True:
+                            registry.capture(name, payload)
+                        mcp_call_count += 1
+                        remaining_context_chars = max(
+                            0, context_char_limit - context_chars_used
+                        )
+                        content = self._bounded_context_content(
+                            content,
+                            payload,
+                            remaining_context_chars,
+                        )
+                        context_chars_used += len(content)
+                        try:
+                            messages.append(
+                                tool_result_message(call, name, content)
+                            )
+                        except ValueError:
+                            logger.warning("mcp_tool_call_missing_id tool=%s", name)
+
+        except Exception as exc:
+            if (
+                not _retried_session
+                and isinstance(exc, MCPError)
+                and "Session terminated" in str(exc)
+            ):
+                logger.info("mcp_session_terminated retrying_retrieval=true")
+                return await self.run(query, _retried_session=True)
+            logger.warning(
+                "retrieval_failed error_type=%s", type(exc).__name__
+            )
+            return RetrievalEnvelope(
+                status="no_evidence",
+                note=f"Retrieval was unavailable ({type(exc).__name__}).",
+            )
 
         return RetrievalEnvelope(
             status="no_evidence",

@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import copy
 import json
-import logging
-import time
 from contextlib import AsyncExitStack
 from types import TracebackType
 from typing import Any
@@ -17,13 +14,7 @@ from src.evidence import extract_cite_uids
 from src.errors import UpstreamProtocolError
 
 
-logger = logging.getLogger(__name__)
-
-
 class MCPGateway:
-    _tool_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
-    _tool_cache_ttl_seconds = 300.0
-
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self._stack: AsyncExitStack | None = None
@@ -38,7 +29,8 @@ class MCPGateway:
                 httpx2.AsyncClient(
                     headers={"Authorization": f"Bearer {api_key}"},
                     timeout=httpx2.Timeout(
-                        self.settings.mcp_tool_timeout_seconds
+                        30.0,
+                        read=self.settings.mcp_tool_timeout_seconds + 10.0,
                     ),
                     follow_redirects=True,
                 )
@@ -46,7 +38,7 @@ class MCPGateway:
             transport = streamable_http_client(
                 self.settings.lunit_mcp_url,
                 http_client=http_client,
-                terminate_on_close=self.settings.mcp_terminate_on_close,
+                terminate_on_close=True,
             )
             self._client = await stack.enter_async_context(
                 Client(
@@ -76,19 +68,6 @@ class MCPGateway:
         return self._client
 
     async def list_openai_tools(self) -> list[dict[str, Any]]:
-        cache_key = self.settings.lunit_mcp_url
-        cached = self._tool_cache.get(cache_key)
-        now = time.monotonic()
-        if cached is not None and now - cached[0] < self._tool_cache_ttl_seconds:
-            converted = copy.deepcopy(cached[1])
-            self._allowed_tools.update(
-                tool["function"]["name"]
-                for tool in converted
-                if isinstance(tool.get("function"), dict)
-            )
-            logger.info("mcp_tool_list_cache_hit tools=%s", len(converted))
-            return converted
-
         client = self._require_client()
         tools: list[Any] = []
         cursor: str | None = None
@@ -116,13 +95,7 @@ class MCPGateway:
                     },
                 }
             )
-        self._tool_cache[cache_key] = (now, copy.deepcopy(converted))
-        logger.info("mcp_tool_list_cache_miss tools=%s", len(converted))
         return converted
-
-    @classmethod
-    def clear_tool_cache(cls) -> None:
-        cls._tool_cache.clear()
 
     async def call_tool(
         self, name: str, arguments: dict[str, Any]
