@@ -416,6 +416,14 @@ try {
     if ([string]::IsNullOrWhiteSpace($resultPath)) {
         throw "Evaluation finished but no result JSON was found in $resultRoot."
     }
+
+    $handoffDirectory = Join-Path $repositoryRoot "docs\evaluations\results"
+    [IO.Directory]::CreateDirectory($handoffDirectory) | Out-Null
+    $handoffPath = Join-Path $handoffDirectory "$safeRunName.json"
+    [IO.File]::Copy($resultPath, $handoffPath, $true)
+    $plan["handoff_file"] = Get-RepositoryRelativePath `
+        -Root $repositoryRoot `
+        -Path $handoffPath
 }
 catch {
     $failure = $_

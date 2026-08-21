@@ -70,6 +70,10 @@ HEALTHBENCH_JUDGE_API_KEY=...
 - 실행 로그: 위 진행 상황판과 마지막 요약
 - 메타데이터 JSON: 브랜치, 버전, SHA, 시간과 결과 경로
 
+평가가 성공하면 공유 가능한 구조화 결과를
+`docs/evaluations/results/<version>.json`에도 자동 복사한다. 이 파일에는 원문 prompt,
+응답, rubric과 API 키가 없으므로 피드백 Markdown과 함께 `dev`에 커밋한다.
+
 완료 후 에이전트에게 다음처럼 요청하면 된다.
 
 > B001 끝났어. 결과 확인하고 피드백 문서 작성해줘.

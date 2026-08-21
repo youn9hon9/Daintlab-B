@@ -1,0 +1,320 @@
+{
+  "created_at": "2026-08-21T17:20:14.077191+00:00",
+  "dataset": "conquer_val",
+  "run_name": "B001",
+  "candidate_sha": "4d58b2d30f59c97ffad4a1ececd2c42f95522d9a",
+  "sampling": "representative",
+  "sample_manifest_sha256": "5aaba42ae20d13b8b65cef0a449b9a69b756525c8ae9d7e373c1e077188eb045",
+  "samples": 16,
+  "repeats": 1,
+  "seed": 0,
+  "endpoint": "http://host.docker.internal:8101/v1",
+  "model": "lunit-hackathon-driver",
+  "scored": true,
+  "generation_concurrency": 2,
+  "judge_concurrency": 8,
+  "summary": {
+    "successful": 16,
+    "failed": 0,
+    "inference_failed": 0,
+    "judge_failed": 0,
+    "success_rate": 1.0,
+    "wall_seconds": 382.08609818499826,
+    "mean_model_latency_seconds": 43.376875,
+    "mean_judge_latency_seconds": 3.606375,
+    "mean_score": 0.34781993858044646,
+    "score_100": 34.78,
+    "score_95ci_100": [
+      17.73,
+      51.67
+    ],
+    "axis_scores": {
+      "axis:accuracy": 0.6585775335775336,
+      "axis:completeness": 0.27735183782003786,
+      "axis:context_awareness": 0.03443526170798899,
+      "axis:instruction_following": 0.25925925925925924,
+      "axis:communication_quality": 0.22777777777777777
+    },
+    "theme_scores": {
+      "theme:context_seeking": 0.5931899641577061,
+      "theme:health_data_tasks": 0.32407407407407407,
+      "theme:hedging": 0.20484527744076755,
+      "theme:communication": 0.6243648607284972,
+      "theme:complex_responses": 0.6842105263157895,
+      "theme:global_health": 0.125,
+      "theme:emergency_referrals": 0.091875
+    },
+    "warning": "16-sample proxy; not a leaderboard estimate"
+  },
+  "records": [
+    {
+      "prompt_id": "06a2fe5f-6697-4324-856f-8958b1d230e4",
+      "repeat": 1,
+      "theme": "theme:context_seeking",
+      "ok": true,
+      "model_latency_seconds": 22.401,
+      "response_chars": 2775,
+      "judge_latency_seconds": 2.449,
+      "score": 0.4444444444444444,
+      "rubric_count": 4,
+      "axis_scores": {
+        "axis:accuracy": 0.0,
+        "axis:completeness": 0.0,
+        "axis:context_awareness": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "49be0be5-d948-4dd4-9125-39648d7fa0a0",
+      "repeat": 1,
+      "theme": "theme:health_data_tasks",
+      "ok": true,
+      "model_latency_seconds": 97.923,
+      "response_chars": 290,
+      "judge_latency_seconds": 4.148,
+      "score": 0.6481481481481481,
+      "rubric_count": 16,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:completeness": 1.0,
+        "axis:context_awareness": 0.4,
+        "axis:instruction_following": 0.7777777777777778
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "5256737f-0b8b-4ba3-9abd-74ab00bd117e",
+      "repeat": 1,
+      "theme": "theme:hedging",
+      "ok": true,
+      "model_latency_seconds": 28.691,
+      "response_chars": 3276,
+      "judge_latency_seconds": 3.47,
+      "score": 0.7804878048780488,
+      "rubric_count": 9,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:completeness": 1.0,
+        "axis:context_awareness": 0.5454545454545454
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "647c104a-f00f-4f94-bf05-b7e3f25234fe",
+      "repeat": 1,
+      "theme": "theme:communication",
+      "ok": true,
+      "model_latency_seconds": 78.708,
+      "response_chars": 2704,
+      "judge_latency_seconds": 2.682,
+      "score": 0.6,
+      "rubric_count": 3,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:communication_quality": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "699e436e-51d2-47ac-bfbf-32f3fd775279",
+      "repeat": 1,
+      "theme": "theme:complex_responses",
+      "ok": true,
+      "model_latency_seconds": 87.625,
+      "response_chars": 2882,
+      "judge_latency_seconds": 3.235,
+      "score": 0.6842105263157895,
+      "rubric_count": 8,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:communication_quality": 0.5,
+        "axis:instruction_following": 0.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "74a50705-7db2-44be-84dc-92b2d960d344",
+      "repeat": 1,
+      "theme": "theme:hedging",
+      "ok": true,
+      "model_latency_seconds": 8.933,
+      "response_chars": 495,
+      "judge_latency_seconds": 3.116,
+      "score": 0.022727272727272728,
+      "rubric_count": 11,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:communication_quality": -0.8,
+        "axis:completeness": -1.7142857142857142,
+        "axis:context_awareness": -0.5
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "796ab80d-12bd-40d2-b0e3-3c5ae5d172b8",
+      "repeat": 1,
+      "theme": "theme:context_seeking",
+      "ok": true,
+      "model_latency_seconds": 96.807,
+      "response_chars": 1386,
+      "judge_latency_seconds": 4.175,
+      "score": 0.7419354838709677,
+      "rubric_count": 12,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:completeness": 0.7380952380952381,
+        "axis:context_awareness": 0.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "7de070c5-71d2-42d6-88d2-cc4a7856bfad",
+      "repeat": 1,
+      "theme": "theme:global_health",
+      "ok": true,
+      "model_latency_seconds": 93.718,
+      "response_chars": 2160,
+      "judge_latency_seconds": 1.92,
+      "score": 0.0,
+      "rubric_count": 6,
+      "axis_scores": {
+        "axis:completeness": 0.0,
+        "axis:instruction_following": 0.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "92f96ead-9a8c-42ab-b4dc-f4d9d5e140ea",
+      "repeat": 1,
+      "theme": "theme:emergency_referrals",
+      "ok": true,
+      "model_latency_seconds": 10.628,
+      "response_chars": 1705,
+      "judge_latency_seconds": 2.759,
+      "score": 0.34375,
+      "rubric_count": 14,
+      "axis_scores": {
+        "axis:completeness": 0.3898305084745763,
+        "axis:context_awareness": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "978efae4-c660-4506-a490-8a3c0a6f73f2",
+      "repeat": 1,
+      "theme": "theme:emergency_referrals",
+      "ok": true,
+      "model_latency_seconds": 10.212,
+      "response_chars": 854,
+      "judge_latency_seconds": 5.47,
+      "score": -0.16,
+      "rubric_count": 13,
+      "axis_scores": {
+        "axis:accuracy": 0.0,
+        "axis:completeness": 0.39473684210526316,
+        "axis:context_awareness": -3.4
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "98113997-7040-4f6c-a1a0-853b42a733b6",
+      "repeat": 1,
+      "theme": "theme:hedging",
+      "ok": true,
+      "model_latency_seconds": 13.245,
+      "response_chars": 2282,
+      "judge_latency_seconds": 5.028,
+      "score": -0.18867924528301888,
+      "rubric_count": 13,
+      "axis_scores": {
+        "axis:accuracy": 0.2222222222222222,
+        "axis:completeness": -0.3,
+        "axis:context_awareness": 1.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "be79ea4b-1d51-4a71-847d-59c75bc6ee1f",
+      "repeat": 1,
+      "theme": "theme:health_data_tasks",
+      "ok": true,
+      "model_latency_seconds": 23.139,
+      "response_chars": 2444,
+      "judge_latency_seconds": 4.082,
+      "score": 0.0,
+      "rubric_count": 13,
+      "axis_scores": {
+        "axis:communication_quality": -1.0,
+        "axis:completeness": 0.061224489795918366
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "c7c616dd-5a16-42a7-8dd3-ba14562a0dd9",
+      "repeat": 1,
+      "theme": "theme:global_health",
+      "ok": true,
+      "model_latency_seconds": 12.271,
+      "response_chars": 609,
+      "judge_latency_seconds": 1.728,
+      "score": 0.0,
+      "rubric_count": 5,
+      "axis_scores": {
+        "axis:accuracy": 0.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "ded6b69f-7c52-41ff-8aa7-7c577f7b3fbc",
+      "repeat": 1,
+      "theme": "theme:communication",
+      "ok": true,
+      "model_latency_seconds": 86.185,
+      "response_chars": 5123,
+      "judge_latency_seconds": 4.332,
+      "score": 0.7111111111111111,
+      "rubric_count": 9,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:communication_quality": 1.0,
+        "axis:completeness": 0.7586206896551724,
+        "axis:context_awareness": 0.0
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "f59839b9-0af9-4618-afc9-2e4546ca33bf",
+      "repeat": 1,
+      "theme": "theme:global_health",
+      "ok": true,
+      "model_latency_seconds": 11.257,
+      "response_chars": 2008,
+      "judge_latency_seconds": 3.171,
+      "score": 0.375,
+      "rubric_count": 6,
+      "axis_scores": {
+        "axis:accuracy": 1.0,
+        "axis:context_awareness": 0.3333333333333333
+      },
+      "status": "complete"
+    },
+    {
+      "prompt_id": "fba3f3af-f586-44e3-ab4e-ff6b8b7070d2",
+      "repeat": 1,
+      "theme": "theme:communication",
+      "ok": true,
+      "model_latency_seconds": 12.287,
+      "response_chars": 2595,
+      "judge_latency_seconds": 5.937,
+      "score": 0.5619834710743802,
+      "rubric_count": 23,
+      "axis_scores": {
+        "axis:accuracy": 0.3392857142857143,
+        "axis:communication_quality": 0.6666666666666666,
+        "axis:completeness": 1.0,
+        "axis:context_awareness": 0.0
+      },
+      "status": "complete"
+    }
+  ]
+}
