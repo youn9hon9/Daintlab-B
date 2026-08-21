@@ -7,7 +7,7 @@ from typing import Any
 from unittest.mock import AsyncMock, patch
 
 from src.errors import UpstreamError
-from src.model_client import LunitModelClient, _PriorityLimiter
+from src.model_client import LunitModelClient, _PriorityLimiter, _input_metrics
 
 
 _SUCCESS_BODY = {
@@ -15,6 +15,21 @@ _SUCCESS_BODY = {
         {"message": {"role": "assistant", "content": "ok"}},
     ]
 }
+
+
+class InputMetricsTest(unittest.TestCase):
+    def test_counts_serialized_input_without_exposing_content(self) -> None:
+        messages = [{"role": "user", "content": "질문"}]
+        tools = [{"type": "function", "function": {"name": "search"}}]
+
+        message_count, message_chars, tool_count, tool_chars = _input_metrics(
+            messages, tools
+        )
+
+        self.assertEqual(message_count, 1)
+        self.assertEqual(tool_count, 1)
+        self.assertGreater(message_chars, 0)
+        self.assertGreater(tool_chars, 0)
 
 
 @dataclass

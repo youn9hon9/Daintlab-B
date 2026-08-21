@@ -6,44 +6,28 @@ from dataclasses import dataclass
 from src.errors import ConfigurationError
 
 
-def _int_env(name: str, default: int, minimum: int = 1) -> int:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    try:
-        value = int(raw)
-    except ValueError as exc:
-        raise ConfigurationError(f"{name} must be an integer") from exc
-    if value < minimum:
-        raise ConfigurationError(f"{name} must be at least {minimum}")
-    return value
-
-
-def _float_env(name: str, default: float, minimum: float = 0.1) -> float:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    try:
-        value = float(raw)
-    except ValueError as exc:
-        raise ConfigurationError(f"{name} must be a number") from exc
-    if value < minimum:
-        raise ConfigurationError(f"{name} must be at least {minimum}")
-    return value
-
-
-def _bool_env(name: str, default: bool) -> bool:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    normalized = raw.strip().lower()
-    if normalized in {"true", "1", "yes"}:
-        return True
-    if normalized in {"false", "0", "no"}:
-        return False
-    raise ConfigurationError(
-        f"{name} must be one of true, false, 1, 0, yes, or no"
-    )
+# B002 control budgets. These values define evaluated model behavior and must
+# change in source (with a new B version), never through deployment environment.
+UPSTREAM_TIMEOUT_SECONDS = 75.0
+REQUEST_TIMEOUT_SECONDS = 170.0
+RETRIEVAL_TIMEOUT_SECONDS = 65.0
+FINAL_GENERATION_RESERVE_SECONDS = 75.0
+MCP_TOOL_TIMEOUT_SECONDS = 25.0
+MCP_TERMINATE_ON_CLOSE = False
+UPSTREAM_RETRIES = 1
+UPSTREAM_CONCURRENCY = 2
+UPSTREAM_PRIORITY_SLOTS = 1
+RETRY_BASE_SECONDS = 0.5
+RETRY_MAX_SECONDS = 8.0
+MAX_GENERATION_ROUNDS = 3
+MAX_RETRIEVALS_PER_ANSWER = 1
+MAX_RETRIEVAL_MODEL_ROUNDS = 5
+MAX_RETRIEVAL_MCP_CALLS = 3
+MAX_MCP_RESULT_CHARS = 8_000
+MAX_RETRIEVAL_CONTEXT_CHARS = 20_000
+MAX_EVIDENCE_CHARS = 16_000
+MAX_SELECTED_EVIDENCE = 2
+CITATION_REPAIR_MIN_SECONDS = 15.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,52 +74,26 @@ class Settings:
             lunit_mcp_url=os.getenv(
                 "LUNIT_MCP_URL", "https://mcp.hackathon.lunit.io/mcp"
             ).strip(),
-            upstream_timeout_seconds=_float_env(
-                "UPSTREAM_TIMEOUT_SECONDS", 75.0
-            ),
-            request_timeout_seconds=_float_env(
-                "REQUEST_TIMEOUT_SECONDS", 170.0
-            ),
-            retrieval_timeout_seconds=_float_env(
-                "RETRIEVAL_TIMEOUT_SECONDS", 65.0
-            ),
-            final_generation_reserve_seconds=_float_env(
-                "FINAL_GENERATION_RESERVE_SECONDS", 75.0
-            ),
-            mcp_tool_timeout_seconds=_float_env(
-                "MCP_TOOL_TIMEOUT_SECONDS", 25.0
-            ),
-            mcp_terminate_on_close=_bool_env(
-                "MCP_TERMINATE_ON_CLOSE", False
-            ),
-            upstream_retries=_int_env("UPSTREAM_RETRIES", 1, minimum=0),
-            upstream_concurrency=_int_env("UPSTREAM_CONCURRENCY", 2),
-            upstream_priority_slots=_int_env(
-                "UPSTREAM_PRIORITY_SLOTS", 1, minimum=0
-            ),
-            retry_base_seconds=_float_env("RETRY_BASE_SECONDS", 0.5),
-            retry_max_seconds=_float_env("RETRY_MAX_SECONDS", 8.0),
-            max_generation_rounds=_int_env("MAX_GENERATION_ROUNDS", 3),
-            max_retrievals_per_answer=_int_env(
-                "MAX_RETRIEVALS_PER_ANSWER", 1
-            ),
-            max_retrieval_model_rounds=_int_env(
-                "MAX_RETRIEVAL_MODEL_ROUNDS", 5
-            ),
-            max_retrieval_mcp_calls=_int_env(
-                "MAX_RETRIEVAL_MCP_CALLS", 3
-            ),
-            max_mcp_result_chars=_int_env(
-                "MAX_MCP_RESULT_CHARS", 8_000, minimum=1_024
-            ),
-            max_retrieval_context_chars=_int_env(
-                "MAX_RETRIEVAL_CONTEXT_CHARS", 20_000, minimum=1_024
-            ),
-            max_evidence_chars=_int_env("MAX_EVIDENCE_CHARS", 16_000),
-            max_selected_evidence=_int_env("MAX_SELECTED_EVIDENCE", 2),
-            citation_repair_min_seconds=_float_env(
-                "CITATION_REPAIR_MIN_SECONDS", 15.0, minimum=0.0
-            ),
+            upstream_timeout_seconds=UPSTREAM_TIMEOUT_SECONDS,
+            request_timeout_seconds=REQUEST_TIMEOUT_SECONDS,
+            retrieval_timeout_seconds=RETRIEVAL_TIMEOUT_SECONDS,
+            final_generation_reserve_seconds=FINAL_GENERATION_RESERVE_SECONDS,
+            mcp_tool_timeout_seconds=MCP_TOOL_TIMEOUT_SECONDS,
+            mcp_terminate_on_close=MCP_TERMINATE_ON_CLOSE,
+            upstream_retries=UPSTREAM_RETRIES,
+            upstream_concurrency=UPSTREAM_CONCURRENCY,
+            upstream_priority_slots=UPSTREAM_PRIORITY_SLOTS,
+            retry_base_seconds=RETRY_BASE_SECONDS,
+            retry_max_seconds=RETRY_MAX_SECONDS,
+            max_generation_rounds=MAX_GENERATION_ROUNDS,
+            max_retrievals_per_answer=MAX_RETRIEVALS_PER_ANSWER,
+            max_retrieval_model_rounds=MAX_RETRIEVAL_MODEL_ROUNDS,
+            max_retrieval_mcp_calls=MAX_RETRIEVAL_MCP_CALLS,
+            max_mcp_result_chars=MAX_MCP_RESULT_CHARS,
+            max_retrieval_context_chars=MAX_RETRIEVAL_CONTEXT_CHARS,
+            max_evidence_chars=MAX_EVIDENCE_CHARS,
+            max_selected_evidence=MAX_SELECTED_EVIDENCE,
+            citation_repair_min_seconds=CITATION_REPAIR_MIN_SECONDS,
         )
         if (
             settings.final_generation_reserve_seconds
