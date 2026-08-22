@@ -5,7 +5,7 @@ import unittest
 
 from src.driver import Driver
 from src.schemas import InputMessage
-from tests.helpers import SequenceModel, make_settings
+from tests.helpers import FakeGatewayFactory, SequenceModel, make_settings, tool_call
 
 
 class MultiturnRegressionTest(unittest.IsolatedAsyncioTestCase):
@@ -57,17 +57,43 @@ class MultiturnRegressionTest(unittest.IsolatedAsyncioTestCase):
         )
         self.assertTrue(payload2["risk_flags"]["reassurance_detected"])
 
-        # Turn 3: pronoun follow-up ("그 증상") -> single L2 call still
-        # carries the flag from turn 1.
+        # Turn 3: pronoun follow-up ("그 증상") that requires retrieval ->
+        # the flag from turn 1 must still be present in this call's payload.
         model3 = SequenceModel(
             [
                 {
                     "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call(
+                            "g1",
+                            "retrieve_relevant_content",
+                            {"query": "가슴 답답함(흉통) 증상의 응급 감별 기준"},
+                        )
+                    ],
+                },
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call(
+                            "r1",
+                            "finalize_retrieval",
+                            {"status": "no_evidence", "items": [], "note": ""},
+                        )
+                    ],
+                },
+                {
+                    "role": "assistant",
                     "content": "그 증상은 계속 주의 관찰이 필요하다는 최종 답변",
-                }
+                },
             ]
         )
-        driver3 = Driver(make_settings(), model_client=model3)
+        driver3 = Driver(
+            make_settings(),
+            model_client=model3,
+            gateway_factory=FakeGatewayFactory(),
+        )
         history.append(
             InputMessage(role="user", content="그 증상은 계속 지켜보면 될까요?")
         )
@@ -77,7 +103,6 @@ class MultiturnRegressionTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn(
             "chest_pain_cardiac", payload3["risk_flags"]["active_categories"]
         )
-        self.assertEqual(len(model3.calls), 1)
 
 
 if __name__ == "__main__":

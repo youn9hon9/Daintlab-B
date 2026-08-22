@@ -192,10 +192,6 @@ class LunitModelClient:
         payload: dict[str, Any] = {
             "model": self.settings.lunit_fm_model,
             "messages": messages,
-            # F009: bound worst-case output length so a single L2 call
-            # cannot generate indefinitely. F010 has exactly one call per
-            # request, so there is only one budget now.
-            "max_tokens": self.settings.max_tokens_answer,
         }
         if tools:
             payload["tools"] = tools
@@ -303,20 +299,7 @@ class LunitModelClient:
                 raise UpstreamProtocolError(
                     "Lunit FM returned invalid JSON"
                 ) from exc
-            message, finish_reason = self._extract_message(data)
-            reasoning_content = message.get("reasoning_content")
-            content = message.get("content")
-            logger.info(
-                "l2_output phase=%s finish_reason=%s content_chars=%s "
-                "reasoning_chars=%s",
-                phase,
-                finish_reason,
-                len(content) if isinstance(content, str) else 0,
-                len(reasoning_content)
-                if isinstance(reasoning_content, str)
-                else 0,
-            )
-            return message
+            return self._extract_message(data)
 
         raise UpstreamError("Lunit FM request failed after retries") from last_error
 
@@ -420,7 +403,7 @@ class LunitModelClient:
         return max(0.0, seconds)
 
     @staticmethod
-    def _extract_message(data: Any) -> tuple[dict[str, Any], Any]:
+    def _extract_message(data: Any) -> dict[str, Any]:
         if not isinstance(data, dict):
             raise UpstreamProtocolError("Lunit FM response must be an object")
         choices = data.get("choices")
@@ -429,7 +412,7 @@ class LunitModelClient:
         first = choices[0]
         if not isinstance(first, dict) or not isinstance(first.get("message"), dict):
             raise UpstreamProtocolError("Lunit FM response has no message")
-        return dict(first["message"]), first.get("finish_reason")
+        return dict(first["message"])
 
     async def aclose(self) -> None:
         if self._owns_client:

@@ -28,7 +28,6 @@ class FakeSettings:
     upstream_priority_slots: int = 1
     retry_base_seconds: float = 0.5
     retry_max_seconds: float = 8.0
-    max_tokens_answer: int = 1024
 
     def require_api_key(self) -> str:
         return self.lunit_fm_api_key
@@ -48,15 +47,6 @@ class FakeResponse:
 
     def json(self) -> Any:
         return self._body
-
-
-class CapturingHTTPClient:
-    def __init__(self) -> None:
-        self.payloads: list[dict[str, Any]] = []
-
-    async def post(self, *args: Any, **kwargs: Any) -> FakeResponse:
-        self.payloads.append(kwargs["json"])
-        return FakeResponse(200)
 
 
 class SequenceHTTPClient:
@@ -151,51 +141,6 @@ class LunitModelClientTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(http_client.calls, 2)
         uniform.assert_not_called()
         sleep.assert_awaited_once_with(2.5)
-
-    async def test_chat_returns_message_and_logs_reasoning_telemetry(
-        self,
-    ) -> None:
-        http_client = SequenceHTTPClient(
-            [
-                FakeResponse(
-                    200,
-                    body={
-                        "choices": [
-                            {
-                                "finish_reason": "stop",
-                                "message": {
-                                    "role": "assistant",
-                                    "content": "final answer",
-                                    "reasoning_content": "internal chain of thought",
-                                },
-                            }
-                        ]
-                    },
-                )
-            ]
-        )
-        client = LunitModelClient(FakeSettings(), http_client=http_client)
-
-        with self.assertLogs("src.model_client", level="INFO") as logs:
-            result = await client.chat(
-                [{"role": "user", "content": "question"}]
-            )
-
-        self.assertEqual(result["content"], "final answer")
-        self.assertEqual(result["reasoning_content"], "internal chain of thought")
-        output_logs = [line for line in logs.output if "l2_output" in line]
-        self.assertEqual(len(output_logs), 1)
-        self.assertIn("finish_reason=stop", output_logs[0])
-        self.assertIn("content_chars=12", output_logs[0])
-        self.assertIn("reasoning_chars=25", output_logs[0])
-
-    async def test_max_tokens_uses_the_single_answer_budget(self) -> None:
-        http_client = CapturingHTTPClient()
-        client = LunitModelClient(FakeSettings(), http_client=http_client)
-
-        await client.chat([{"role": "user", "content": "q"}], phase="initial")
-
-        self.assertEqual(http_client.payloads[0]["max_tokens"], 1024)
 
     async def test_limits_only_active_http_attempts(self) -> None:
         concurrency = 2

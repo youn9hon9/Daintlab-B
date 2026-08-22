@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -18,6 +18,37 @@ class ChatCompletionRequest(BaseModel):
     model: str
     messages: list[InputMessage]
     stream: bool = False
+
+
+class CitableItem(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    cite_uid: str
+    relevance_score: float = Field(ge=0.0)
+    role: Literal["primary", "corroborating", "caveat"] = "primary"
+
+
+class CitationSelection(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    status: Literal["sufficient", "partial", "no_evidence"]
+    items: list[CitableItem] = Field(default_factory=list)
+    note: str = ""
+
+
+class ResolvedEvidence(BaseModel):
+    citation: str
+    cite_uid: str
+    relevance_score: float
+    role: Literal["primary", "corroborating", "caveat"] = "primary"
+    source_tool: str
+    payload: Any
+
+
+class RetrievalEnvelope(BaseModel):
+    status: Literal["sufficient", "partial", "no_evidence"]
+    note: str = ""
+    evidence: list[ResolvedEvidence] = Field(default_factory=list)
 
 
 class RiskFlag(BaseModel):
@@ -42,26 +73,4 @@ class ResponseGuidance(BaseModel):
     missing_context: list[str] = Field(default_factory=list)
     global_context_needed: bool = False
     note: str = ""
-
-
-class CompiledEvidenceItem(BaseModel):
-    """One harness-extracted, citable source (F010 evidence compiler).
-
-    Unlike the old ResolvedEvidence, no L2 selects or scores this -- the
-    harness decides inclusion deterministically, so there is no
-    relevance_score or role field to carry.
-    """
-
-    citation: str
-    cite_uid: str
-    source_tool: str
-    title: str = ""
-    date: str = ""
-    excerpt: str = ""
-
-
-class EvidencePacket(BaseModel):
-    status: Literal["sufficient", "no_evidence"]
-    note: str = ""
-    items: list[CompiledEvidenceItem] = Field(default_factory=list)
 
