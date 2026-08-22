@@ -38,8 +38,13 @@ _CLINICAL_BACKGROUND = (
     r"pregnan|breastfeed|medical history|diabetes|hypertension|heart|kidney|liver|allerg|taking",
 )
 _GLOBAL_CONTEXT = (
-    r"비용|가격|보험|급여|보장|지원|구할 수|어디서|의료 접근|진료 가능",
-    r"cost|price|insurance|coverage|available|access|where can i|get care",
+    r"비용|가격|보험|급여|보장|지원|구할 수|어디서|의료 접근|진료 가능"
+    r"|나라마다|국가마다|지역마다|어느 나라|각국|나라별|국가별|나라에 따라"
+    r"|선진국|개발도상국|자원.{0,4}(부족|제한)|의료.{0,2}체계|보건.{0,2}체계",
+    r"cost|price|insurance|coverage|available|access|where can i|get care"
+    r"|different countries|country to country|varies by country|across countries"
+    r"|developing countr|low-income countr|resource-limited|resource-poor"
+    r"|health(care)? system",
 )
 _JURISDICTION = (
     r"한국|대한민국|미국|일본|중국|영국|캐나다|호주|유럽|국내|해외|서울|부산|제주",

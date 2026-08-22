@@ -41,6 +41,20 @@ class ResponseGuidanceTest(unittest.TestCase):
         result = assess("한국에서 이 치료는 보험이 되나요?")
         self.assertFalse(result.global_context_needed)
 
+    def test_cross_country_variation_question_requires_jurisdiction(self) -> None:
+        result = assess("이 백신 접종 시기는 나라마다 다른가요?")
+        self.assertTrue(result.global_context_needed)
+
+    def test_resource_limited_setting_question_requires_jurisdiction(self) -> None:
+        result = assess(
+            "Is this treatment available in resource-limited settings?"
+        )
+        self.assertTrue(result.global_context_needed)
+
+    def test_health_system_question_requires_jurisdiction(self) -> None:
+        result = assess("의료 체계가 다르면 진단 기준도 달라지나요?")
+        self.assertTrue(result.global_context_needed)
+
     def test_general_education_does_not_force_clarification(self) -> None:
         result = assess("비타민 D는 어떤 역할을 하나요?")
         self.assertFalse(result.clarification_needed)
