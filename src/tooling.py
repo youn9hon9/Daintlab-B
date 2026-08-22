@@ -50,6 +50,18 @@ FINALIZE_TOOL = {
                         "properties": {
                             "cite_uid": {"type": "string", "minLength": 1},
                             "relevance_score": {"type": "number", "minimum": 0},
+                            "role": {
+                                "type": "string",
+                                "enum": ["primary", "corroborating", "caveat"],
+                                "description": (
+                                    "primary: most directly answers the query. "
+                                    "corroborating: an independent source that "
+                                    "confirms the primary finding. caveat: "
+                                    "contradicts, limits, or adds a safety or "
+                                    "jurisdiction constraint to the primary "
+                                    "finding. Defaults to primary if omitted."
+                                ),
+                            },
                         },
                         "required": ["cite_uid", "relevance_score"],
                         "additionalProperties": False,
