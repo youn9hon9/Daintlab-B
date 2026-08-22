@@ -24,8 +24,18 @@ class SlowRetrievalRunner:
         await asyncio.sleep(0.1)
 
 
-@unittest.skip("B012 removed the legacy retrieval and repair pipeline")
 class DriverTest(unittest.IsolatedAsyncioTestCase):
+    async def test_empty_content_without_tool_calls_is_rejected(self) -> None:
+        model = SequenceModel([{"role": "assistant", "content": ""}])
+        driver = Driver(make_settings(), model_client=model)
+
+        with self.assertRaisesRegex(
+            UpstreamProtocolError, "neither text nor tool calls"
+        ):
+            await driver.generate(
+                [InputMessage(role="user", content="일반적인 건강 질문")]
+            )
+
     async def test_direct_generation_without_retrieval(self) -> None:
         model = SequenceModel(
             [{"role": "assistant", "content": "직접 생성한 L2 답변"}]
@@ -38,95 +48,7 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(answer, "직접 생성한 L2 답변")
         self.assertEqual(len(model.calls), 1)
-        self.assertEqual(
-            model.calls[0]["tools"][0]["function"]["name"],
-            "retrieve_relevant_content",
-        )
-
-    async def test_retrieval_off_does_not_expose_generation_tool(self) -> None:
-        model = SequenceModel(
-            [{"role": "assistant", "content": "Direct-only answer"}]
-        )
-        driver = Driver(
-            make_settings(
-                retrieval_enabled=False,
-                retrieval_gate_enabled=True,
-            ),
-            model_client=model,
-        )
-
-        answer = await driver.generate(
-            [InputMessage(role="user", content="General health question")]
-        )
-
-        self.assertEqual(answer, "Direct-only answer")
         self.assertIsNone(model.calls[0]["tools"])
-        self.assertEqual(model.calls[0]["phase"], "initial")
-
-    async def test_retrieval_off_rejects_unoffered_tool_call(self) -> None:
-        model = SequenceModel(
-            [
-                {
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [
-                        tool_call(
-                            "unexpected",
-                            "retrieve_relevant_content",
-                            {"query": "unoffered retrieval"},
-                        )
-                    ],
-                }
-            ]
-        )
-        driver = Driver(
-            make_settings(
-                retrieval_enabled=False,
-                retrieval_gate_enabled=True,
-            ),
-            model_client=model,
-        )
-
-        with self.assertRaisesRegex(
-            UpstreamProtocolError,
-            "while retrieval was not offered",
-        ):
-            await driver.generate(
-                [InputMessage(role="user", content="General health question")]
-            )
-
-    async def test_retrieval_gate_keeps_general_question_direct(self) -> None:
-        model = SequenceModel(
-            [{"role": "assistant", "content": "General direct answer"}]
-        )
-        driver = Driver(
-            make_settings(retrieval_gate_enabled=True),
-            model_client=model,
-        )
-
-        await driver.generate(
-            [InputMessage(role="user", content="머리가 아픈데 어떻게 할까요?")]
-        )
-
-        self.assertIsNone(model.calls[0]["tools"])
-
-    async def test_retrieval_gate_exposes_tool_for_guideline_question(self) -> None:
-        model = SequenceModel(
-            [{"role": "assistant", "content": "Guideline-based answer"}]
-        )
-        driver = Driver(
-            make_settings(retrieval_gate_enabled=True),
-            model_client=model,
-        )
-
-        await driver.generate(
-            [InputMessage(role="user", content="최신 고혈압 가이드라인을 알려주세요")]
-        )
-
-        self.assertEqual(
-            model.calls[0]["tools"][0]["function"]["name"],
-            "retrieve_relevant_content",
-        )
 
     async def test_generation_retrieval_generation_flow(self) -> None:
         model = SequenceModel(
@@ -188,7 +110,7 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
 
         answer = await driver.generate(
             [
-                InputMessage(role="user", content="이 질환의 목표는?"),
+                InputMessage(role="user", content="가이드라인상 이 질환의 목표는?"),
                 InputMessage(role="assistant", content="질환을 알려주세요."),
                 InputMessage(role="user", content="아까 그 질환이요."),
             ]
@@ -271,73 +193,7 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(tool_message["role"], "tool")
         self.assertEqual(json.loads(tool_message["content"])["status"], "no_evidence")
 
-    async def test_citation_repair_round_fixes_unknown_citation(self) -> None:
-        model = SequenceModel(
-            [
-                {
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [
-                        tool_call(
-                            "generation-1",
-                            "retrieve_relevant_content",
-                            {"query": "완결된 임상 가이드라인 질문"},
-                        )
-                    ],
-                },
-                {
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [
-                        tool_call(
-                            "retrieval-1",
-                            "fake_search",
-                            {"query": "guideline evidence"},
-                        )
-                    ],
-                },
-                {
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [
-                        tool_call(
-                            "retrieval-2",
-                            "finalize_retrieval",
-                            {
-                                "status": "sufficient",
-                                "items": [
-                                    {
-                                        "cite_uid": "cite-test-1",
-                                        "relevance_score": 0.95,
-                                    }
-                                ],
-                                "note": "",
-                            },
-                        )
-                    ],
-                },
-                {"role": "assistant", "content": "근거 [1][2] 기반 답변"},
-                {"role": "assistant", "content": "근거 [1] 기반 수정 답변"},
-            ]
-        )
-        gateways = FakeGatewayFactory()
-        driver = Driver(
-            make_settings(citation_repair_min_seconds=0.0),
-            model_client=model,
-            gateway_factory=gateways,
-        )
-
-        answer = await driver.generate(
-            [InputMessage(role="user", content="이 질환의 목표는?")]
-        )
-
-        self.assertEqual(answer, "근거 [1] 기반 수정 답변")
-        self.assertEqual(len(model.calls), 5)
-        self.assertIsNone(model.calls[-1]["tools"])
-        self.assertIsNone(model.calls[-1]["tool_choice"])
-        self.assertEqual(model.calls[-1]["max_tokens"], 768)
-
-    async def test_citation_repair_skipped_when_time_budget_exhausted(self) -> None:
+    async def test_unknown_citation_is_removed_without_repair_round(self) -> None:
         model = SequenceModel(
             [
                 {
@@ -387,16 +243,78 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
         )
         gateways = FakeGatewayFactory()
         driver = Driver(
-            make_settings(citation_repair_min_seconds=999.0),
+            make_settings(),
             model_client=model,
             gateway_factory=gateways,
         )
 
         answer = await driver.generate(
-            [InputMessage(role="user", content="이 질환의 목표는?")]
+            [InputMessage(role="user", content="가이드라인상 이 질환의 목표는?")]
         )
 
-        self.assertEqual(answer, "근거 [1][2] 기반 답변")
+        self.assertEqual(answer, "근거 [1] 기반 답변")
+        self.assertEqual(len(model.calls), 4)
+
+    async def test_missing_citation_does_not_add_repair_round(self) -> None:
+        model = SequenceModel(
+            [
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call(
+                            "generation-1",
+                            "retrieve_relevant_content",
+                            {"query": "완결된 임상 가이드라인 질문"},
+                        )
+                    ],
+                },
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call(
+                            "retrieval-1",
+                            "fake_search",
+                            {"query": "guideline evidence"},
+                        )
+                    ],
+                },
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call(
+                            "retrieval-2",
+                            "finalize_retrieval",
+                            {
+                                "status": "sufficient",
+                                "items": [
+                                    {
+                                        "cite_uid": "cite-test-1",
+                                        "relevance_score": 0.95,
+                                    }
+                                ],
+                                "note": "",
+                            },
+                        )
+                    ],
+                },
+                {"role": "assistant", "content": "인용 표지 없는 근거 기반 답변"},
+            ]
+        )
+        gateways = FakeGatewayFactory()
+        driver = Driver(
+            make_settings(),
+            model_client=model,
+            gateway_factory=gateways,
+        )
+
+        answer = await driver.generate(
+            [InputMessage(role="user", content="가이드라인상 이 질환의 목표는?")]
+        )
+
+        self.assertEqual(answer, "인용 표지 없는 근거 기반 답변")
         self.assertEqual(len(model.calls), 4)
 
 

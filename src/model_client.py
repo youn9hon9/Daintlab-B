@@ -23,17 +23,6 @@ logger = logging.getLogger(__name__)
 ModelPhase = Literal["initial", "retrieval", "final"]
 
 
-def _input_metrics(
-    messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None
-) -> tuple[int, int, int, int]:
-    return (
-        len(messages),
-        len(json.dumps(messages, ensure_ascii=False, separators=(",", ":"))),
-        len(tools or []),
-        len(json.dumps(tools or [], ensure_ascii=False, separators=(",", ":"))),
-    )
-
-
 @dataclass(slots=True)
 class _Waiter:
     future: asyncio.Future[None]
@@ -196,7 +185,6 @@ class LunitModelClient:
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
         phase: ModelPhase = "initial",
-        max_tokens: int | None = None,
         max_retries: int | None = None,
         retry_deadline: float | None = None,
     ) -> dict[str, Any]:
@@ -209,27 +197,24 @@ class LunitModelClient:
             payload["tools"] = tools
         if tool_choice is not None:
             payload["tool_choice"] = tool_choice
-        if max_tokens is not None:
-            payload["max_tokens"] = max_tokens
-
-        message_count, message_chars, tool_count, tool_schema_chars = (
-            _input_metrics(messages, tools)
-        )
-        logger.info(
-            "l2_input phase=%s messages=%s message_chars=%s tools=%s "
-            "tool_schema_chars=%s",
-            phase,
-            message_count,
-            message_chars,
-            tool_count,
-            tool_schema_chars,
-        )
 
         endpoint = f"{self.settings.lunit_fm_api_url}/v1/chat/completions"
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
+
+        logger.info(
+            "l2_input phase=%s messages=%s message_chars=%s tools=%s "
+            "tool_schema_chars=%s",
+            phase,
+            len(messages),
+            len(json.dumps(messages, ensure_ascii=False, default=str)),
+            len(tools) if tools else 0,
+            len(json.dumps(tools, ensure_ascii=False, default=str))
+            if tools
+            else 0,
+        )
 
         retry_limit = (
             self.settings.upstream_retries
@@ -427,25 +412,7 @@ class LunitModelClient:
         first = choices[0]
         if not isinstance(first, dict) or not isinstance(first.get("message"), dict):
             raise UpstreamProtocolError("Lunit FM response has no message")
-        message = dict(first["message"])
-        finish_reason = first.get("finish_reason")
-        if isinstance(finish_reason, str):
-            message["_finish_reason"] = finish_reason
-        usage = data.get("usage")
-        if isinstance(usage, dict):
-            safe_usage = {
-                key: usage[key]
-                for key in ("prompt_tokens", "completion_tokens", "total_tokens")
-                if isinstance(usage.get(key), int)
-            }
-            details = usage.get("completion_tokens_details")
-            if isinstance(details, dict) and isinstance(
-                details.get("reasoning_tokens"), int
-            ):
-                safe_usage["reasoning_tokens"] = details["reasoning_tokens"]
-            if safe_usage:
-                message["_usage"] = safe_usage
-        return message
+        return dict(first["message"])
 
     async def aclose(self) -> None:
         if self._owns_client:

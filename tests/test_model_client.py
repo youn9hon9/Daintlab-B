@@ -7,7 +7,7 @@ from typing import Any
 from unittest.mock import AsyncMock, patch
 
 from src.errors import UpstreamError
-from src.model_client import LunitModelClient, _PriorityLimiter, _input_metrics
+from src.model_client import LunitModelClient, _PriorityLimiter
 
 
 _SUCCESS_BODY = {
@@ -15,21 +15,6 @@ _SUCCESS_BODY = {
         {"message": {"role": "assistant", "content": "ok"}},
     ]
 }
-
-
-class InputMetricsTest(unittest.TestCase):
-    def test_counts_serialized_input_without_exposing_content(self) -> None:
-        messages = [{"role": "user", "content": "질문"}]
-        tools = [{"type": "function", "function": {"name": "search"}}]
-
-        message_count, message_chars, tool_count, tool_chars = _input_metrics(
-            messages, tools
-        )
-
-        self.assertEqual(message_count, 1)
-        self.assertEqual(tool_count, 1)
-        self.assertGreater(message_chars, 0)
-        self.assertGreater(tool_chars, 0)
 
 
 @dataclass
@@ -68,11 +53,11 @@ class SequenceHTTPClient:
     def __init__(self, responses: list[FakeResponse]) -> None:
         self.responses = list(responses)
         self.calls = 0
-        self.requests: list[dict[str, Any]] = []
+        self.urls: list[str] = []
 
     async def post(self, *args: Any, **kwargs: Any) -> FakeResponse:
         self.calls += 1
-        self.requests.append(kwargs)
+        self.urls.append(str(args[0]))
         if not self.responses:
             raise AssertionError("Fake HTTP client has no response left")
         return self.responses.pop(0)
@@ -116,59 +101,19 @@ class OrderedHTTPClient:
 
 
 class LunitModelClientTest(unittest.IsolatedAsyncioTestCase):
-    def test_extracts_finish_reason_without_replacing_content(self) -> None:
-        message = LunitModelClient._extract_message(
-            {
-                "choices": [
-                    {
-                        "message": {
-                            "role": "assistant",
-                            "content": "answer",
-                            "reasoning_content": "private",
-                        },
-                        "finish_reason": "stop",
-                    }
-                ],
-                "usage": {
-                    "prompt_tokens": 120,
-                    "completion_tokens": 80,
-                    "total_tokens": 200,
-                    "completion_tokens_details": {"reasoning_tokens": 32},
-                    "sensitive_or_unknown": "not logged",
-                },
-            }
-        )
-
-        self.assertEqual(message["content"], "answer")
-        self.assertEqual(message["reasoning_content"], "private")
-        self.assertEqual(message["_finish_reason"], "stop")
-        self.assertEqual(
-            message["_usage"],
-            {
-                "prompt_tokens": 120,
-                "completion_tokens": 80,
-                "total_tokens": 200,
-                "reasoning_tokens": 32,
-            },
-        )
-
-    async def test_sends_explicit_max_tokens(self) -> None:
+    async def test_default_endpoint_has_single_path_separator(self) -> None:
         http_client = SequenceHTTPClient([FakeResponse(200)])
-        client = LunitModelClient(FakeSettings(), http_client=http_client)
-
-        await client.chat(
-            [{"role": "user", "content": "question"}], max_tokens=384
+        settings = FakeSettings(
+            lunit_fm_api_url="http://61.107.202.7:9412"
         )
-
-        self.assertEqual(http_client.requests[0]["json"]["max_tokens"], 384)
-
-    async def test_omits_max_tokens_when_not_set(self) -> None:
-        http_client = SequenceHTTPClient([FakeResponse(200)])
-        client = LunitModelClient(FakeSettings(), http_client=http_client)
+        client = LunitModelClient(settings, http_client=http_client)
 
         await client.chat([{"role": "user", "content": "question"}])
 
-        self.assertNotIn("max_tokens", http_client.requests[0]["json"])
+        self.assertEqual(
+            http_client.urls,
+            ["http://61.107.202.7:9412/v1/chat/completions"],
+        )
 
     async def test_retries_http_500_with_full_jitter(self) -> None:
         http_client = SequenceHTTPClient(
