@@ -35,6 +35,11 @@ from src.tooling import (
 logger = logging.getLogger(__name__)
 
 
+# F007 is a source-controlled ablation, not an environment toggle. Tests can
+# explicitly enable the legacy RAG path so its contracts remain covered.
+RETRIEVAL_ENABLED = False
+
+
 class Driver:
     def __init__(
         self,
@@ -64,7 +69,19 @@ class Driver:
         )
         assessment = assess_risk(history)
         guidance = assess_response_guidance(history, assessment)
-        retrieval_allowed = should_offer_retrieval(history)
+        # F007 ablation: F006 and B006 independently found that RAG attempts
+        # almost always exhaust the retrieval budget and fall back to
+        # no_evidence with no usable citation (F006: 2-3/32 RAG entries, all
+        # timed out; B006: 15-19/32, virtually all timed out). Before
+        # investing in a narrower/faster retrieval strategy, this version
+        # measures whether the retrieval path is net-positive at all by
+        # disabling it outright. should_offer_retrieval's keyword gate stays
+        # untouched and is still evaluated (but not acted on) so telemetry
+        # shows how often the old gate would have fired, to inform F008.
+        would_offer_retrieval = should_offer_retrieval(history)
+        if would_offer_retrieval and not RETRIEVAL_ENABLED:
+            logger.info("retrieval_gate_suppressed reason=f007_ablation")
+        retrieval_allowed = RETRIEVAL_ENABLED and would_offer_retrieval
         conversation = [message.model_dump() for message in history]
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": GENERATION_SYSTEM_PROMPT},
@@ -121,6 +138,28 @@ class Driver:
                 raise UpstreamProtocolError(
                     "Lunit FM attempted a tool call during final generation"
                 )
+            if calls and not retrieval_allowed:
+                # A model must not be able to enter the disabled RAG path by
+                # returning an unsolicited tool call. Preserve the assistant
+                # call and answer it with a local error so the next round can
+                # produce a direct answer without touching RetrievalRunner/MCP.
+                logger.warning(
+                    "unoffered_tool_calls_suppressed count=%s", len(calls)
+                )
+                messages.append(assistant_message_for_history(assistant))
+                for call in calls:
+                    name = tool_call_name(call)
+                    self._append_tool_result(
+                        messages,
+                        call,
+                        name or "unknown_tool",
+                        tool_error_content(
+                            "No tools are available for this request. "
+                            "Answer the user directly using available knowledge "
+                            "and state important uncertainty."
+                        ),
+                    )
+                continue
             if not calls:
                 content = assistant.get("content")
                 if isinstance(content, str) and content.strip():

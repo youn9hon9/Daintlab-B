@@ -31,14 +31,95 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
         )
         driver = Driver(make_settings(), model_client=model)
 
-        answer = await driver.generate(
-            [InputMessage(role="user", content="일반적인 건강 질문")]
-        )
+        with self.assertLogs("src.driver", level="INFO") as logs:
+            answer = await driver.generate(
+                [InputMessage(role="user", content="일반적인 건강 질문")]
+            )
 
         self.assertEqual(answer, "직접 생성한 L2 답변")
         self.assertEqual(len(model.calls), 1)
         self.assertIsNone(model.calls[0]["tools"])
+        self.assertEqual(model.calls[0]["phase"], "initial")
+        self.assertFalse(
+            any("retrieval_gate_suppressed" in line for line in logs.output)
+        )
+        self.assertTrue(
+            any(
+                "generation_complete route=direct" in line
+                for line in logs.output
+            )
+        )
 
+    async def test_retrieval_tool_is_not_offered_even_for_guideline_question(
+        self,
+    ) -> None:
+        model = SequenceModel(
+            [{"role": "assistant", "content": "직접 생성한 답변"}]
+        )
+        gateways = FakeGatewayFactory()
+        driver = Driver(
+            make_settings(), model_client=model, gateway_factory=gateways
+        )
+
+        with self.assertLogs("src.driver", level="INFO") as logs:
+            answer = await driver.generate(
+                [InputMessage(role="user", content="가이드라인상 이 질환의 목표는?")]
+            )
+
+        self.assertEqual(answer, "직접 생성한 답변")
+        self.assertEqual(len(model.calls), 1)
+        self.assertIsNone(model.calls[0]["tools"])
+        self.assertEqual(model.calls[0]["phase"], "initial")
+        self.assertEqual(gateways.instances, [])
+        self.assertTrue(
+            any("retrieval_gate_suppressed" in line for line in logs.output)
+        )
+        self.assertTrue(
+            any(
+                "generation_complete route=direct" in line
+                for line in logs.output
+            )
+        )
+
+    async def test_unsolicited_retrieval_call_never_reaches_mcp(self) -> None:
+        model = SequenceModel(
+            [
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        tool_call(
+                            "unexpected-retrieval",
+                            "retrieve_relevant_content",
+                            {"query": "최신 가이드라인"},
+                        )
+                    ],
+                },
+                {"role": "assistant", "content": "불확실성을 밝힌 직접 답변"},
+            ]
+        )
+        gateways = FakeGatewayFactory()
+        driver = Driver(
+            make_settings(), model_client=model, gateway_factory=gateways
+        )
+
+        with self.assertLogs("src.driver", level="WARNING") as logs:
+            answer = await driver.generate(
+                [InputMessage(role="user", content="최신 가이드라인을 알려주세요")]
+            )
+
+        self.assertEqual(answer, "불확실성을 밝힌 직접 답변")
+        self.assertEqual(gateways.instances, [])
+        self.assertEqual(len(model.calls), 2)
+        self.assertTrue(all(call["tools"] is None for call in model.calls))
+        corrective_message = model.calls[1]["messages"][-1]
+        self.assertEqual(corrective_message["role"], "tool")
+        self.assertIn("No tools are available", corrective_message["content"])
+        self.assertTrue(
+            any("unoffered_tool_calls_suppressed" in line for line in logs.output)
+        )
+
+    @patch("src.driver.RETRIEVAL_ENABLED", True)
     async def test_generation_retrieval_generation_flow(self) -> None:
         model = SequenceModel(
             [
@@ -120,6 +201,7 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
             envelope["evidence"][0]["cite_uid"], "cite-test-1"
         )
 
+    @patch("src.driver.RETRIEVAL_ENABLED", True)
     async def test_malformed_tool_call_is_rejected_before_round_trip(self) -> None:
         model = SequenceModel(
             [
@@ -145,6 +227,7 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
                 [InputMessage(role="user", content="근거가 필요한 질문")]
             )
 
+    @patch("src.driver.RETRIEVAL_ENABLED", True)
     async def test_retrieval_timeout_preserves_final_generation(self) -> None:
         model = SequenceModel(
             [
@@ -182,6 +265,7 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(tool_message["role"], "tool")
         self.assertEqual(json.loads(tool_message["content"])["status"], "no_evidence")
 
+    @patch("src.driver.RETRIEVAL_ENABLED", True)
     async def test_unknown_citation_is_removed_without_repair_round(self) -> None:
         model = SequenceModel(
             [
@@ -244,6 +328,7 @@ class DriverTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(answer, "근거 [1] 기반 답변")
         self.assertEqual(len(model.calls), 4)
 
+    @patch("src.driver.RETRIEVAL_ENABLED", True)
     async def test_missing_citation_does_not_add_repair_round(self) -> None:
         model = SequenceModel(
             [

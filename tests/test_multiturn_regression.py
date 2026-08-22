@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import unittest
+from unittest.mock import patch
 
 from src.driver import Driver
 from src.schemas import InputMessage
@@ -9,6 +10,7 @@ from tests.helpers import FakeGatewayFactory, SequenceModel, make_settings, tool
 
 
 class MultiturnRegressionTest(unittest.IsolatedAsyncioTestCase):
+    @patch("src.driver.RETRIEVAL_ENABLED", True)
     async def test_red_flag_persists_and_pronoun_resolves_across_three_turns(
         self,
     ) -> None:
@@ -95,7 +97,10 @@ class MultiturnRegressionTest(unittest.IsolatedAsyncioTestCase):
             gateway_factory=FakeGatewayFactory(),
         )
         history.append(
-            InputMessage(role="user", content="그 증상은 계속 지켜보면 될까요?")
+            InputMessage(
+                role="user",
+                content="그 증상의 응급 감별 가이드라인은 무엇인가요?",
+            )
         )
         await driver3.generate(history)
 
