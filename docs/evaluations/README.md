@@ -51,7 +51,8 @@ timeout 때문이며, 실제 Trial은 42.48점으로 성공했다 — 위 기준
 | [F007](candidates/F007.md) | 평가 대기 | - | - | - | Retrieval 경로를 완전히 끄는 단일 변수 ablation. F006(RAG 2~3/32 전부 timeout)과 B006(RAG 15~19/32 전부 timeout)이 독립적으로 같은 결론(retrieval이 사실상 항상 실패)에 도달해 같은 다음 실험을 권고했다 |
 | [F008](candidates/F008.md) | 평가 대기 | - | - | - | F007 위에 관측 전용 가독성 체크(문장 길이 proxy, wiki 11)만 추가 — 행동 무변경이라 이 평가는 F007의 retrieval OFF 가설도 그대로 검증한다 |
 | [F009](candidates/F009.md) | 평가 대기 | - | - | - | L2 `max_tokens` 명시(initial/final 1024, retrieval 512) — timeout은 그대로 두고 출력 길이 상한으로 꼬리 지연을 먼저 줄인 뒤 F010에서 timeout 인하를 단일 변수로 시도 |
-| [F010](candidates/F010.md) | 평가 대기 | - | - | - | **아키텍처 전면 재설계.** 하네스가 결정론적으로 라우팅·MCP 직접 호출·근거 압축을 수행하고, 요청당 L2 호출을 정확히 1회로 고정. 구 retrieval L2 루프(retrieval.py, RETRIEVE_TOOL/FINALIZE_TOOL) 제거 |
+| [F010](candidates/F010.md) | 평가 대기 | - | - | - | **아키텍처 전면 재설계.** 하네스가 결정론적으로 라우팅·MCP 직접 호출·근거 압축을 수행하고, 요청당 L2 호출을 정확히 1회로 고정. 구 retrieval L2 루프(retrieval.py, RETRIEVE_TOOL/FINALIZE_TOOL) 제거. F011부터는 F006 기준선으로 되돌아가 이 구조를 더 쌓지 않는다 |
+| [F011](candidates/F011.md) | 평가 대기 | - | - | - | main의 F006(45.88 real Trial)을 정확히 복원 + 장애 대응 L2 endpoint(61.107.202.7:9412) 적용 + global health 지역 맥락 인식 강화(guidance.py 패턴 확장, 프롬프트 무변경) |
 
 B002·F002·F003·F004는 32/32를 완주하지 못해 승격되지 않았다. **F005가
 32/32·58.57점으로 처음 승격됐다** — F004의 timeout/동시성 정렬을 그대로
